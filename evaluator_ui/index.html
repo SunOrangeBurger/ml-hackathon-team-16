@@ -252,7 +252,9 @@
         item.append(title, number);
         metrics.append(item);
       }
-      tripNote.textContent = `Trip ${data.trip_id} was scored by the trained candidate model and reconstructed with the directed Viterbi decoder.`;
+      tripNote.textContent = data.decoder === "hmm"
+        ? "Gaussian GPS emissions and normalized HMM transitions."
+        : "Trained classifier scores and directed Viterbi decoding.";
       for (const message of data.warnings ?? []) {
         const item = document.createElement("li");
         item.textContent = String(message).replaceAll("_", " ");
@@ -272,6 +274,7 @@
         modelCatalog = catalog.models;
         const models = byId("models");
         models.replaceChildren();
+        if (!modelCatalog.length) models.add(new Option("Geometric HMM", ""));
         for (const row of modelCatalog) models.add(new Option(row.label, row.id));
         models.disabled = !modelCatalog.length;
         showAggregate();

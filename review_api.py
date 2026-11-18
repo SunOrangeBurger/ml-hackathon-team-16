@@ -53,6 +53,8 @@ def catalog_artifact(model_id):
 
 @app.get("/models")
 def models():
+    if os.environ.get("PATHSNAP_DECODER", "weighted") == "hmm":
+        return {"models": []}
     path = ROOT / "artifacts/models/catalog.json"
     return {"models": json.loads(path.read_text(encoding="utf-8")) if path.exists() else []}
 
@@ -107,7 +109,8 @@ async def log_request(request: Request, call_next):
 def health():
     if MODE != "review":
         ready_service()
-        return {"status": "ready", "mode": MODE}
+        return {"status": "ready", "mode": MODE,
+                "decoder": os.environ.get("PATHSNAP_DECODER", "weighted")}
     ready = all(path.is_file() for path in FIXTURES.values())
     if not ready:
         raise HTTPException(503, "Generate the development fixtures with review_one.py")
@@ -178,6 +181,7 @@ def predict_learned(trip_id, model_id=None):
         logger.warning("Scoring unavailable for %s: %s", trip_id, error)
         warnings.append("Reference scoring unavailable")
     response = prediction_response(trip_id, observations, sections, metrics, warnings)
+    response["decoder"] = os.environ.get("PATHSNAP_DECODER", "weighted")
     if os.environ.get("PATHSNAP_SHOW_REFERENCE") == "1" and len(trip.route):
         response["reference_route"] = {
             "type": "MultiLineString",

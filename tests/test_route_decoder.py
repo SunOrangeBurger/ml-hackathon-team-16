@@ -1,9 +1,29 @@
 import unittest
+import numpy as np
 
-from route_decoder import decode
+from route_decoder import decode, normalized_log_transitions
 
 
 class DecoderJitterTests(unittest.TestCase):
+    def test_hmm_transitions_normalize_reachable_rows_and_keep_forbidden_edges(self):
+        weights = np.array([[-1000., -1001., -np.inf], [-np.inf, -np.inf, -np.inf]])
+        probabilities = np.exp(normalized_log_transitions(weights))
+        self.assertAlmostEqual(probabilities[0].sum(), 1)
+        self.assertEqual(probabilities[0, 2], 0)
+        self.assertEqual(probabilities[1].sum(), 0)
+
+    def test_hmm_uses_geometric_likelihood_with_uniform_initial_state(self):
+        observations = [{
+            "longitude": .0005, "latitude": 0., "timestamp_s": 0,
+            "candidates": [
+                {"arc_id": 0, "arc_fraction": .5, "probability": .01},
+                {"arc_id": 1, "arc_fraction": .5, "probability": .99},
+            ],
+        }]
+        nodes = [[0., 0.], [.001, 0.], [0., .001], [.001, .001]]
+        assignments, _, _ = decode(observations, nodes, [[0, 1], [2, 3]], probabilistic_hmm=True)
+        self.assertEqual(assignments, [0])
+
     def test_uturn_penalty_prefers_forward_arc_when_gps_direction_is_ambiguous(self):
         nodes = [[0.0, 0.0], [0.001, 0.0]]
         arcs = [[0, 1], [1, 0]]

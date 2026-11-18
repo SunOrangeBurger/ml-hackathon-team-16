@@ -10,6 +10,18 @@ from pathlib import Path
 import numpy as np
 
 
+def normalized_log_transitions(log_weights):
+    """Normalize each reachable source state's outgoing probabilities."""
+    result = np.full_like(log_weights, -np.inf, dtype=float)
+    for index, row in enumerate(log_weights):
+        finite = np.isfinite(row)
+        if finite.any():
+            maximum = row[finite].max()
+            normalizer = maximum + np.log(np.exp(row[finite] - maximum).sum())
+            result[index, finite] = row[finite] - normalizer
+    return result
+
+
 def load_fixture(path, data_dir):
     fixture = json.loads(Path(path).read_text(encoding="utf-8"))
     if fixture["schema_version"] != 1:
@@ -34,7 +46,11 @@ def decode(
     distance_slack_m=25,
     detour_penalty=2,
     uturn_penalty=6,
+    probabilistic_hmm=False,
+    emission_sigma_m=15,
 ):
+    if emission_sigma_m <= 0:
+        raise ValueError("Emission sigma must be positive")
     if not observations:
         return [], [], []
     nodes = np.asarray(nodes, dtype=float)
@@ -123,6 +139,14 @@ def decode(
             warnings["no_candidates"] += 1
             continue
         emissions = [math.log(max(candidate["probability"], 1e-12)) for candidate in group]
+        if probabilistic_hmm:
+            # Isotropic Gaussian observation likelihood in projected metres.
+            emissions = [
+                -0.5 * float(np.sum(
+                    ((np.asarray(snap(candidate)) - gps[index]) * metres) ** 2
+                )) / emission_sigma_m ** 2
+                for candidate in group
+            ]
         parents = [-1] * len(group)
         if active:
             previous_index, previous_group, _ = active[-1]
@@ -133,6 +157,7 @@ def decode(
             else:
                 displacement = np.linalg.norm((gps[index] - gps[previous_index]) * metres)
                 next_scores = [-math.inf] * len(group)
+                transition_weights = np.full((len(previous_group), len(group)), -np.inf)
                 for j, candidate in enumerate(group):
                     for k, previous in enumerate(previous_group):
                         if not math.isfinite(scores[k]):
@@ -141,8 +166,6 @@ def decode(
                         if distance > min(1_500, max_speed_mps * gap + distance_slack_m):
                             continue
                         value = (
-                            scores[k]
-                            + emissions[j]
                             - abs(distance - displacement) / transition_scale_m
                             - detour_penalty * max(0, distance - displacement - 10) / transition_scale_m
                         )
@@ -154,6 +177,12 @@ def decode(
                             and arcs[previous_arc, 1] == arcs[current_arc, 0]
                         ):
                             value -= uturn_penalty
+                        transition_weights[k, j] = value
+                if probabilistic_hmm:
+                    transition_weights = normalized_log_transitions(transition_weights)
+                for j in range(len(group)):
+                    for k in range(len(previous_group)):
+                        value = scores[k] + emissions[j] + transition_weights[k, j]
                         if value > next_scores[j]:
                             next_scores[j], parents[j] = value, k
                 if any(parent >= 0 for parent in parents):
@@ -163,6 +192,9 @@ def decode(
                 finish_section()
                 warnings["impossible_transition"] += 1
         active.append((index, group, parents))
-        scores = emissions
+        scores = [
+            value - math.log(len(group)) if probabilistic_hmm else value
+            for value in emissions
+        ]
     finish_section()
     return assignments, sections, [f"{reason}: {count}" for reason, count in warnings.items()]
