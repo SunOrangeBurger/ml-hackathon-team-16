@@ -84,7 +84,7 @@
       <div class="map-card">
         <div id="map" aria-label="OpenStreetMap view of GPS observations and predicted route"></div>
         <div class="map-footer">
-          <div class="legend"><span><i class="swatch gps"></i>GPS observations</span><span><i class="swatch"></i>Predicted route</span></div>
+          <div class="legend"><span><i class="swatch gps"></i>GPS observations</span><span><i class="swatch"></i>Predicted route</span><span id="reference-legend" hidden><i class="swatch" style="background:#b35a12"></i>Reference route</span></div>
           <span id="map-summary">Select a trip to view its route.</span>
           <button type="button" id="fit-route" disabled>Fit route</button>
         </div>
@@ -106,6 +106,7 @@
     const mapSummary = byId("map-summary"), tripNote = byId("trip-note");
     let request = null, map = null, gpsLayer = null, routeLayer = null, endpointLayer = null;
     let routeBounds = null;
+    let referenceLayer = null;
     api.value = new URLSearchParams(location.search).get("api") || "http://127.0.0.1:8000";
 
     function setStatus(message, state = "") {
@@ -140,10 +141,14 @@
         maxZoom: 19, attribution: '&copy; OpenStreetMap contributors, Tiles style by HOT'
       });
       gpsLayer = L.layerGroup().addTo(map);
+      map.createPane("reference");
+      map.getPane("reference").style.zIndex = 390;
+      referenceLayer = L.layerGroup().addTo(map);
       routeLayer = L.layerGroup().addTo(map);
       endpointLayer = L.layerGroup().addTo(map);
       L.control.layers({ "OpenStreetMap": street, "Humanitarian": humanitarian }, {
         "GPS observations": gpsLayer, "Predicted route": routeLayer,
+        "Reference route": referenceLayer,
         "Start and destination": endpointLayer
       }, { collapsed: false }).addTo(map);
     }
@@ -153,6 +158,8 @@
       gpsLayer?.clearLayers();
       routeLayer?.clearLayers();
       endpointLayer?.clearLayers();
+      referenceLayer?.clearLayers();
+      byId("reference-legend").hidden = true;
       mapSummary.textContent = "Select a trip to view its route.";
     }
     function renderMap(data) {
@@ -161,6 +168,17 @@
       const gps = data.gps?.coordinates ?? [];
       const sections = data.predicted_route?.coordinates ?? [];
       const bounds = [];
+      const reference = data.reference_route?.coordinates ?? [];
+      byId("reference-legend").hidden = !reference.length;
+      for (const section of reference) {
+        const coordinates = section.map(([lon, lat]) => [lat, lon]);
+        if (coordinates.length > 1) {
+          L.polyline(coordinates, {
+            pane: "reference", color: "#b35a12", weight: 9, opacity: .65
+          }).bindTooltip("Supplied reference route").addTo(referenceLayer);
+          bounds.push(...coordinates);
+        }
+      }
       for (const [lon, lat] of gps) {
         if (!Number.isFinite(lon) || !Number.isFinite(lat)) continue;
         bounds.push([lat, lon]);

@@ -160,7 +160,13 @@ def predict_learned(trip_id):
     except (OSError, ValueError) as error:
         logger.warning("Scoring unavailable for %s: %s", trip_id, error)
         warnings.append("Reference scoring unavailable")
-    return prediction_response(trip_id, observations, sections, metrics, warnings)
+    response = prediction_response(trip_id, observations, sections, metrics, warnings)
+    if os.environ.get("PATHSNAP_SHOW_REFERENCE") == "1" and len(trip.route):
+        response["reference_route"] = {
+            "type": "MultiLineString",
+            "coordinates": trip.nodes[trip.arcs[trip.route]].tolist(),
+        }
+    return response
 
 
 def prediction_response(trip_id, observations, sections, metrics, warnings):
