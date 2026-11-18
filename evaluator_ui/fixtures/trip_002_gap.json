@@ -1,0 +1,40 @@
+{
+  "trip_id": "002",
+  "gps": {
+    "type": "MultiPoint",
+    "coordinates": [
+      [77.6050, 12.9860],
+      [77.6062, 12.9875],
+      [77.6075, 12.9890],
+      [77.6130, 12.9950],
+      [77.6145, 12.9968],
+      [77.6160, 12.9985]
+    ]
+  },
+  "predicted_route": {
+    "type": "MultiLineString",
+    "coordinates": [
+      [
+        [77.6048, 12.9858],
+        [77.6060, 12.9872],
+        [77.6073, 12.9888]
+      ],
+      [
+        [77.6128, 12.9948],
+        [77.6142, 12.9965],
+        [77.6158, 12.9982]
+      ]
+    ]
+  },
+  "metrics": {
+    "top1_accuracy": 0.867,
+    "macro_f1": 0.842,
+    "route_continuity": 0.720,
+    "candidate_coverage": 0.910,
+    "arc_edit_distance": 4
+  },
+  "warnings": [
+    "Discontinuity warning: 92-second timestamp gap detected between obs 3 and 4.",
+    "Viterbi decoder restarted sequence; route emitted as disconnected MultiLineString."
+  ]
+}

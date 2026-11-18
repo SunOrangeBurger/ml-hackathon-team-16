@@ -1,0 +1,31 @@
+{
+  "trip_id": "003",
+  "gps": {
+    "type": "MultiPoint",
+    "coordinates": [
+      [77.5850, 12.9620],
+      [77.5862, 12.9635],
+      [77.5878, 12.9650],
+      [77.5895, 12.9668],
+      [77.5910, 12.9685],
+      [77.5925, 12.9702]
+    ]
+  },
+  "predicted_route": {
+    "type": "MultiLineString",
+    "coordinates": [
+      [
+        [77.5848, 12.9618],
+        [77.5860, 12.9632],
+        [77.5875, 12.9648],
+        [77.5892, 12.9665],
+        [77.5908, 12.9682],
+        [77.5923, 12.9700]
+      ]
+    ]
+  },
+  "metrics": null,
+  "warnings": [
+    "Evaluator mode: Ground truth is hidden server-side. Pointwise metrics are unavailable."
+  ]
+}
