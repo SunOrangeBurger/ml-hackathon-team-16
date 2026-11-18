@@ -8,7 +8,6 @@ Run with:
 
 import streamlit as st
 import streamlit.components.v1 as components
-import json
 import time
 
 from evaluator_ui.api_client import BackendAPIClient
@@ -26,35 +25,9 @@ st.set_page_config(
 # Custom Styling
 st.markdown("""
 <style>
-    .metric-card {
-        background-color: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 8px;
-        padding: 12px 16px;
-        margin-bottom: 10px;
-    }
-    .metric-val {
-        font-size: 24px;
-        font-weight: 700;
-        color: #0f172a;
-    }
-    .metric-lbl {
-        font-size: 13px;
-        color: #64748b;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
     .badge-online {
         background-color: #dcfce7;
         color: #15803d;
-        padding: 4px 8px;
-        border-radius: 6px;
-        font-weight: 600;
-        font-size: 12px;
-    }
-    .badge-offline {
-        background-color: #fee2e2;
-        color: #b91c1c;
         padding: 4px 8px;
         border-radius: 6px;
         font-weight: 600;
@@ -68,6 +41,8 @@ if "api_url" not in st.session_state:
     st.session_state.api_url = "http://localhost:8000"
 if "use_mock" not in st.session_state:
     st.session_state.use_mock = True
+if "prediction_key" not in st.session_state:
+    st.session_state.prediction_key = None
 if "active_trip_id" not in st.session_state:
     st.session_state.active_trip_id = "001"
 if "last_result" not in st.session_state:
@@ -117,7 +92,14 @@ try:
     available_trips = client.get_trips(use_mock=st.session_state.use_mock)
 except Exception as e:
     st.sidebar.warning(f"Could not load trips from API: {str(e)}")
-    available_trips = ["001", "002", "003"]
+    available_trips = []
+
+if not available_trips:
+    st.session_state.prediction_key = None
+    st.warning("No trips are available from the selected source.")
+    if st.button("Retry loading trips"):
+        st.rerun()
+    st.stop()
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("🚗 Trip Selection")
@@ -130,13 +112,15 @@ selected_trip = st.sidebar.selectbox(
 )
 
 # Show description if using mock data
-if selected_trip in MOCK_TRIPS:
+if st.session_state.use_mock and selected_trip in MOCK_TRIPS:
     st.sidebar.caption(f"ℹ️ {MOCK_TRIPS[selected_trip].get('description', '')}")
 
 fetch_trigger = st.sidebar.button("🚀 Run Prediction / Decode", type="primary", use_container_width=True)
 
-# Clear error or fetch new result when selection changes or button clicked
-if selected_trip != st.session_state.active_trip_id or fetch_trigger or st.session_state.last_result is None:
+source = None if st.session_state.use_mock else client.base_url
+prediction_key = (source, selected_trip)
+if prediction_key != st.session_state.prediction_key or fetch_trigger:
+    st.session_state.prediction_key = prediction_key
     st.session_state.active_trip_id = selected_trip
     st.session_state.fetch_error = None
     with st.spinner(f"Requesting inference for Trip '{selected_trip}'..."):
@@ -162,9 +146,10 @@ with col_status2:
     if st.session_state.use_mock:
         st.markdown('<span class="badge-online">✔ Mock Fixture Ready</span>', unsafe_allow_html=True)
     else:
-        st.markdown(f'<span class="badge-online">Live API: {st.session_state.api_url}</span>', unsafe_allow_html=True)
+        st.text(f"Live API: {st.session_state.api_url}")
 with col_status3:
     if st.button("🔄 Refresh Data", use_container_width=True):
+        st.session_state.prediction_key = None
         st.rerun()
 
 st.markdown("---")
@@ -180,6 +165,7 @@ if st.session_state.fetch_error:
     4. Or toggle back to **Offline Development Fixtures** in the sidebar.
     """)
     if st.button("🔁 Retry Request"):
+        st.session_state.prediction_key = None
         st.rerun()
     st.stop()
 
@@ -213,37 +199,24 @@ if trip_data:
         st.subheader("Evaluation Metrics")
         metrics = trip_data.get("metrics")
 
-        if metrics is None:
-            st.info("🔒 **Metrics Unavailable**\n\nReserved Evaluator Trip. Ground truth is withheld on server to prevent data leakage.")
+        if not metrics:
+            st.info("Metrics unavailable for this trip.")
         else:
-            acc = metrics.get("top1_accuracy")
-            f1 = metrics.get("macro_f1")
-            cont = metrics.get("route_continuity")
-            cov = metrics.get("candidate_coverage")
-            dist = metrics.get("arc_edit_distance")
-
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-lbl">Pointwise Top-1 Acc</div>
-                <div class="metric-val">{(acc * 100):.1f}%</div>
-            </div>
-            <div class="metric-card">
-                <div class="metric-lbl">Macro F1 Score</div>
-                <div class="metric-val">{f1:.3f}</div>
-            </div>
-            <div class="metric-card">
-                <div class="metric-lbl">Route Continuity</div>
-                <div class="metric-val">{(cont * 100):.1f}%</div>
-            </div>
-            <div class="metric-card">
-                <div class="metric-lbl">Candidate Coverage</div>
-                <div class="metric-val">{(cov * 100):.1f}%</div>
-            </div>
-            <div class="metric-card">
-                <div class="metric-lbl">Arc Edit Distance</div>
-                <div class="metric-val">{dist}</div>
-            </div>
-            """, unsafe_allow_html=True)
+            percent_labels = {
+                "top1_accuracy": "Pointwise Top-1 Accuracy",
+                "route_continuity": "Route Continuity",
+                "candidate_coverage": "Candidate Coverage",
+            }
+            for name, value in metrics.items():
+                label = percent_labels.get(name, name.replace("_", " ").title())
+                if name == "macro_f1":
+                    label = "Macro F1"
+                display_value = value
+                if name in percent_labels:
+                    display_value = f"{value:.1%}"
+                elif isinstance(value, float):
+                    display_value = f"{value:.3g}"
+                st.metric(label, display_value)
 
         # Summary Information
         gps_coords = trip_data.get("gps", {}).get("coordinates", [])
@@ -254,7 +227,7 @@ if trip_data:
         st.markdown(f"**GPS Points:** `{len(gps_coords)}` fixes")
         st.markdown(f"**Route Sections:** `{num_segments}` segment(s)")
         if num_segments > 1:
-            st.markdown("🚨 *Route has discontinuities across time gaps.*")
+            st.markdown("🚨 *The route has multiple disconnected sections.*")
 
     # Debug / Raw Payload Expander
     with st.expander("🔍 View Raw GeoJSON API Payload"):

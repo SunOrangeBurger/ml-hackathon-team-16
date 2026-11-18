@@ -32,11 +32,12 @@ def main():
         client = BackendAPIClient(base_url=args.api)
         try:
             trip_data = client.predict_trip(trip_id)
-        except Exception as e:
-            print(f"Error fetching from API: {e}. Falling back to local fixtures.")
-            trip_data = MOCK_TRIPS.get(trip_id, MOCK_TRIPS["001"])
+        except (ConnectionError, ValueError) as error:
+            parser.error(str(error))
     else:
-        trip_data = MOCK_TRIPS.get(trip_id, MOCK_TRIPS["001"])
+        if trip_id not in MOCK_TRIPS:
+            parser.error(f"Unknown local fixture: {trip_id}")
+        trip_data = MOCK_TRIPS[trip_id]
 
     out_file = export_folium_html(trip_data, args.output)
     print(f"✔ Interactive HTML map successfully saved to: {os.path.abspath(out_file)}")

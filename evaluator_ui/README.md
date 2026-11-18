@@ -2,7 +2,7 @@
 
 This module implements the complete **Evaluator UI and Folium Visualizations** for the Machine Learning Hackathon (Module 04).
 
-It satisfies all deliverables for **Review 1** and provides the core visualization infrastructure for final evaluation.
+See the [project quick start](../README.md) for the integrated Review 1 run. The physical two-laptop demonstration is a separate verification step.
 
 ---
 
@@ -46,10 +46,11 @@ Open your browser at `http://localhost:8501`.
 ### Mode B: Live Cross-Laptop Demonstration (Laptop 1 ↔ Laptop 2)
 
 #### Step 1: Start Backend on Laptop 1
-On Laptop 1 (running the FastAPI backend or the included stub):
+On Laptop 1, start the merged FastAPI backend in decoder mode:
 ```bash
-python evaluator_ui/mock_backend.py --host 0.0.0.0 --port 8000
+PATHSNAP_MODE=decoder python -m uvicorn backend.app:app --host 0.0.0.0 --port 8000
 ```
+For PowerShell and the optional training trip, follow the [project quick start](../README.md).
 > **Note**: Find Laptop 1's local IP address by running `ipconfig` (Windows) or `ifconfig` (Linux/Mac). Example IP: `192.168.1.15`.
 > Ensure Laptop 1's firewall permits inbound TCP on port 8000.
 
@@ -61,7 +62,7 @@ python evaluator_ui/mock_backend.py --host 0.0.0.0 --port 8000
    ```
    Connected! (12.4 ms) Online (ready)
    ```
-5. Select a trip ID and click **"Run Prediction / Decode"**. The UI will query Laptop 1 live over the network, display the route on the map, and render server-computed evaluation metrics!
+5. Select `synthetic` and click **"Run Prediction / Decode"**. Check the route and counts in the UI and the corresponding request in Laptop 1's terminal.
 
 ---
 
@@ -73,7 +74,7 @@ To generate standalone interactive `.html` maps for report submissions:
 python evaluator_ui/generate_folium_map.py --trip 001 --output trip_001_map.html
 
 # Generate map from live backend on Laptop 1
-python evaluator_ui/generate_folium_map.py --trip 001 --api http://192.168.1.15:8000 --output trip_001_live.html
+python evaluator_ui/generate_folium_map.py --trip synthetic --api http://192.168.1.15:8000 --output synthetic_live.html
 ```
 
 ---

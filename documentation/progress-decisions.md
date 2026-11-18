@@ -41,3 +41,9 @@ See [Review 1 results and reproduction steps](review-1-data-and-model.md).
 | Discontinuities | Empty observations remain explicitly unmatched; long gaps and impossible transitions split route sections and generate warnings rather than joining them with straight lines. | FastAPI can consume assignments, sections and warning codes. Validate the response shape during backend integration. |
 
 Verification on this checkpoint: the synthetic pointwise winners are `[0, 2]` and the decoded connected assignments are `[0, 1]`; all eight focused standard-library tests pass. A generated real candidate fixture is present under the ignored `output/review-1/` directory, but its referenced graph files are not currently available at the documented `Student folder/Student folder` path, so the real-fixture decode could not be rerun. Trained-scorer parity, tuning and runtime measurements remain follow-ups.
+
+## 18 November 2026 — Review 1 integration on the team branch
+
+The [quick start](../README.md) uses FastAPI's decoder mode to bring the four merged workstreams together. The decoder reads the synthetic fixture and can also serve the generated training trip when its files are configured. Streamlit displays the returned counts and route. The precomputed response is still available in fixture mode for API contract checks. Record the receiving laptop's request log during the physical two-laptop rehearsal.
+
+The unbounded path search exceeded 30 seconds on trip `00000001`. Applying the existing transition distance budget to the search brought the local API requests for that trip to about 0.6 seconds. It matched 1,315 observations and returned 94 drawable route sections under the team's Review 1 settings. The sections show where the decoder could not connect the candidate sequence under those settings. Route quality on student-test trips remains a final-evaluation task.

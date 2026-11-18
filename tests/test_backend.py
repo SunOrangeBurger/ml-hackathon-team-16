@@ -1,6 +1,8 @@
 from fastapi.testclient import TestClient
 
 from backend.app import create_app
+from evaluator_ui.api_client import BackendAPIClient
+from evaluator_ui.map_renderer import get_leaflet_map_html
 
 
 def test_fixture_endpoints_return_expected_contract():
@@ -65,3 +67,24 @@ def test_missing_fixture_reports_not_ready(tmp_path):
 
     assert response.status_code == 503
     assert response.json()["status"] == "not_ready"
+
+
+def test_decoder_mode_serves_connected_route_to_evaluator(monkeypatch):
+    monkeypatch.delenv("PATHSNAP_DECODER_FIXTURE", raising=False)
+    with TestClient(create_app(mode="decoder")) as client:
+        monkeypatch.setattr("evaluator_ui.api_client.requests.get", lambda url, **kwargs: client.get(url))
+        monkeypatch.setattr(
+            "evaluator_ui.api_client.requests.post",
+            lambda url, **kwargs: client.post(url, json=kwargs["json"]),
+        )
+        evaluator = BackendAPIClient("http://testserver")
+        assert evaluator.check_health()[0]
+        assert evaluator.get_trips() == ["synthetic"]
+        prediction = evaluator.predict_trip("synthetic")
+        assert prediction["predicted_route"] == {
+            "type": "MultiLineString",
+            "coordinates": [[[8.00005, 49.0], [8.0001, 49.0], [8.00015, 49.0]]],
+        }
+        assert prediction["metrics"]["matched_count"] == 2
+        assert "Predicted Route" in get_leaflet_map_html(prediction)
+        assert client.post("/predict", json={"trip_id": "missing"}).status_code == 404

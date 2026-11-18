@@ -98,7 +98,7 @@ class DirectedRoadGraph:
         self.adjacency = [tuple(sorted(edges, key=lambda edge: edge[1])) for edges in adjacency]
 
     @lru_cache(maxsize=8192)
-    def shortest_path(self, source, target):
+    def shortest_path(self, source, target, max_distance=math.inf):
         if source == target:
             return 0.0, ()
         distances = {source: 0.0}
@@ -107,6 +107,8 @@ class DirectedRoadGraph:
         settled = set()
         while queue:
             distance, node = heapq.heappop(queue)
+            if distance > max_distance:
+                break
             if node in settled:
                 continue
             settled.add(node)
@@ -126,7 +128,7 @@ class DirectedRoadGraph:
                     heapq.heappush(queue, (next_distance, next_node))
         return math.inf, ()
 
-    def transition(self, source, target):
+    def transition(self, source, target, max_distance=math.inf):
         """Return network distance and traversed arc fractions, or an unreachable result."""
         source_id, source_fraction = source
         target_id, target_fraction = target
@@ -138,7 +140,7 @@ class DirectedRoadGraph:
             distance = (target_fraction - source_fraction) * self.arc_lengths[source_id]
             return distance, traversals
 
-        middle_distance, middle_arcs = self.shortest_path(source_node, target_node)
+        middle_distance, middle_arcs = self.shortest_path(source_node, target_node, max_distance)
         if not math.isfinite(middle_distance):
             return math.inf, []
         traversals = [(source_id, source_fraction, 1.0)]
@@ -286,6 +288,8 @@ def _decode_connected_block(observations, config, graph, warnings, route_section
             previous = observations[segment_end - 1]
             current = observations[segment_end]
             elapsed = current["timestamp_s"] - previous["timestamp_s"]
+            # A middle path beyond this limit cannot yield a legal transition.
+            max_distance = config.max_speed_mps * elapsed + config.distance_tolerance_m
             previous_candidates = previous["candidates"]
             current_candidates = current["candidates"]
             next_dynamic = [-math.inf] * len(current_candidates)
@@ -297,6 +301,7 @@ def _decode_connected_block(observations, config, graph, warnings, route_section
                     distance, _ = graph.transition(
                         (previous_candidate["arc_id"], previous_candidate["arc_fraction"]),
                         (current_candidate["arc_id"], current_candidate["arc_fraction"]),
+                        max_distance,
                     )
                     score = dynamic[previous_i] + _transition_score(distance, elapsed, config)
                     if score > next_dynamic[current_i] + 1e-12:
@@ -336,10 +341,12 @@ def _decode_connected_block(observations, config, graph, warnings, route_section
         _append_traversals(section_traversals, [
             (first["arc_id"], first["arc_fraction"], first["arc_fraction"])
         ])
-        for previous, current in zip(selected_candidates, selected_candidates[1:]):
+        for index, (previous, current) in enumerate(zip(selected_candidates, selected_candidates[1:])):
+            elapsed = segment[index + 1]["timestamp_s"] - segment[index]["timestamp_s"]
             _, traversals = graph.transition(
                 (previous["arc_id"], previous["arc_fraction"]),
                 (current["arc_id"], current["arc_fraction"]),
+                config.max_speed_mps * elapsed + config.distance_tolerance_m,
             )
             _append_traversals(section_traversals, traversals)
         section = {

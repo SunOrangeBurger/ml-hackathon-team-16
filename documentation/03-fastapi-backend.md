@@ -8,7 +8,7 @@ The challenge brief schedules Review 1 before lunch and describes a final evalua
 - [x] Define a valid response and representative error payload for the UI owner.
 - [ ] Demonstrate a request from the second laptop and its corresponding log entry on the receiving laptop.
 
-The fixture service is implemented in [`backend/app.py`](../backend/app.py) and returns the synthetic decoder example. It is an integration stub, not model inference. The current checkout does not contain trained model or evaluator artifacts.
+The service in [`backend/app.py`](../backend/app.py) supports a precomputed response in the default fixture mode. Use `PATHSNAP_MODE=decoder` to run the merged decoder on each request and return match counts. The [project quick start](../README.md) shows how to serve the synthetic and real training fixtures.
 
 ### Run the development service
 
@@ -35,7 +35,7 @@ The API also exposes its OpenAPI document at `/openapi.json` and interactive doc
 - `GET /trips` returns `{"trip_ids":["synthetic"]}`. IDs remain strings.
 - `POST /predict` accepts `{"trip_id":"synthetic"}` and responds with the fields in the documented response shape below.
 - Error responses use `{"error":{"code":"...","message":"..."},"request_id":"..."}`. Invalid requests return 422 with `error.details`; unknown IDs return 404 with `unknown_trip`; unavailable inference returns 503 with `inference_unavailable`.
-- Every response includes `X-Request-ID`; Laptop 1 logs the request ID, trip ID (when provided), status and duration.
+- Responses include `X-Request-ID`. Laptop 1 logs the request ID, client address, trip ID when provided, status and duration.
 - GeoJSON coordinates are `[longitude, latitude]`. Metrics are `null` in the fixture; the fixture warning identifies that the response is not a live prediction.
 
 Example fixture response:
