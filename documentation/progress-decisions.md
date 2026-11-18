@@ -49,3 +49,10 @@ On trip `00000001`, the decoder assigned all 1,315 observations, split the route
 - Support organizer-provided trip directories through a server-side manifest. Reserve the physical two-laptop evaluator demonstration for when the official data is available.
 
 See [development results](development-results.md).
+
+## 18 November 2026 — Organizer holdout and decoder correction
+
+- Keep `evaluator_test` completely outside training and configuration selection. It contains ten trips with reference routes and is used once as an organizer holdout.
+- Permit up to 30 m of backward projected motion on the same directed arc to absorb GPS jitter. Select transition scale and slack on student-test trips.
+- Retain histogram gradient boosting. The CUDA listwise ranker produced only a small, inconsistent grouped-CV improvement.
+- Deploy the corrected decoder defaults after they improved student-test pointwise accuracy to 92.21% and organizer-holdout accuracy to 93.39%.

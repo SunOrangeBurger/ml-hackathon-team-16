@@ -3,224 +3,254 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>PathSnap Review 1</title>
+  <title>PathSnap Evaluator</title>
+  <link rel="preconnect" href="https://tile.openstreetmap.org">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIINfQ3ynh/W6G8fSQC2edbFhE/1I7TQTQ=" crossorigin="">
   <style>
+    :root {
+      --ink: #172224; --muted: #637174; --line: #d7dfde; --surface: #fff;
+      --canvas: #f3f6f5; --green: #0c6b57; --green-dark: #075143;
+      --green-soft: #e8f4f0; --blue: #1f62d0; --red: #b42318;
+      --shadow: 0 18px 48px rgba(30, 52, 47, .10);
+    }
     * { box-sizing: border-box; }
-    body { margin: 0; background: #eef2f4; color: #132b30; font: 16px/1.5 system-ui, sans-serif; }
-    main { max-width: 1100px; margin: auto; padding: clamp(16px, 4vw, 48px); }
-    h1 { font-size: 2rem; margin: 0 0 20px; }
-    .panel { background: white; border: 1px solid #c9d5d7; border-radius: 12px; padding: 18px; }
-    form, .legend { display: flex; flex-wrap: wrap; gap: 12px 18px; align-items: end; }
-    label { display: grid; gap: 4px; font-weight: 600; }
-    input, select, button { font: inherit; border: 1px solid #627a80; border-radius: 6px; padding: 8px 12px; }
-    input { width: min(100%, 320px); }
-    button { background: #075e54; color: white; cursor: pointer; }
-    button:disabled { cursor: default; opacity: .55; }
-    #status { min-height: 1.5em; margin: 12px 0; }
-    #status.error { color: #a01f26; }
-    canvas { display: block; width: 100%; height: clamp(320px, 60vh, 620px); background: #f4f8f8; border: 1px solid #c9d5d7; border-radius: 8px; }
-    .legend { margin-top: 12px; }
-    .legend label { display: flex; gap: 6px; align-items: center; font-weight: 400; }
-    .dot, .line { width: 14px; background: #2753a5; height: 8px; border-radius: 4px; }
-    .line { background: #04745e; height: 4px; }
-    dl { display: flex; flex-wrap: wrap; gap: 16px 30px; margin-bottom: 0; }
-    dd { margin: 0; font-weight: 700; font-size: 1.25rem; }
-    ul:empty { display: none; }
+    body { margin: 0; background: var(--canvas); color: var(--ink); font: 15px/1.45 Inter, ui-sans-serif, system-ui, sans-serif; }
+    button, input, select { font: inherit; }
+    header { background: #102d27; color: white; padding: 28px max(24px, calc((100vw - 1440px) / 2)); }
+    .brand { display: flex; align-items: center; gap: 14px; }
+    .mark { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 13px; background: #e2f4ed; color: var(--green-dark); font-weight: 900; }
+    h1 { margin: 0; font-size: clamp(1.45rem, 3vw, 2rem); letter-spacing: -.03em; }
+    header p { margin: 4px 0 0; color: #bed5cf; }
+    main { max-width: 1440px; margin: auto; padding: 22px; }
+    .toolbar { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(180px, 260px) auto; gap: 12px; align-items: end; padding: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); }
+    label { display: grid; gap: 6px; color: var(--muted); font-size: .78rem; font-weight: 750; letter-spacing: .04em; text-transform: uppercase; }
+    input, select { width: 100%; min-height: 42px; padding: 9px 11px; color: var(--ink); background: white; border: 1px solid #aebbb8; border-radius: 8px; outline: none; }
+    input:focus, select:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(12, 107, 87, .14); }
+    button { min-height: 42px; padding: 9px 16px; border: 0; border-radius: 8px; background: var(--green); color: white; font-weight: 750; cursor: pointer; }
+    button:hover { background: var(--green-dark); }
+    button:disabled { cursor: default; opacity: .5; }
+    #status { display: flex; align-items: center; gap: 9px; min-height: 42px; margin: 12px 0; padding: 9px 13px; color: #36534c; background: var(--green-soft); border-radius: 9px; }
+    #status.error { color: var(--red); background: #fff0ee; }
+    #status.loading::before { content: ""; width: 15px; height: 15px; border: 2px solid #9dc7bd; border-top-color: var(--green); border-radius: 50%; animation: spin .75s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .layout { display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 16px; }
+    .map-card, .side-card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); }
+    #map { width: 100%; height: clamp(440px, 67vh, 760px); background: #dce8e4; }
+    .map-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; padding: 12px 15px; border-top: 1px solid var(--line); }
+    .legend { display: flex; flex-wrap: wrap; gap: 16px; }
+    .legend span { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); }
+    .swatch { width: 18px; height: 4px; border-radius: 8px; background: var(--green); }
+    .swatch.gps { height: 8px; width: 8px; border-radius: 50%; background: var(--blue); }
+    .side-card { padding: 17px; }
+    .side-card h2 { margin: 0 0 12px; font-size: 1.05rem; }
+    #metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin: 0; }
+    #metrics div { padding: 12px; background: #f5f8f7; border: 1px solid #e4eae8; border-radius: 9px; }
+    dt { color: var(--muted); font-size: .72rem; font-weight: 750; letter-spacing: .03em; text-transform: uppercase; }
+    dd { margin: 4px 0 0; font-size: 1.3rem; font-weight: 800; }
+    .trip-note { margin-top: 15px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); }
+    #warnings { margin: 12px 0 0; padding: 0; list-style: none; }
+    #warnings li { margin-top: 8px; padding: 9px 10px; color: #75420a; background: #fff7e8; border-left: 3px solid #e9a23b; border-radius: 5px; font-size: .85rem; }
+    .empty { display: grid; place-items: center; height: 100%; padding: 30px; color: #50615e; text-align: center; }
+    .leaflet-control-layers, .leaflet-control-zoom { border: 0 !important; box-shadow: 0 4px 18px rgba(20, 47, 40, .2) !important; }
+    @media (max-width: 900px) {
+      .toolbar { grid-template-columns: 1fr 1fr; }
+      .toolbar button { grid-column: span 2; }
+      .layout { grid-template-columns: 1fr; }
+      #map { height: 56vh; min-height: 390px; }
+    }
+    @media (max-width: 560px) {
+      main { padding: 12px; }
+      .toolbar { grid-template-columns: 1fr; }
+      .toolbar button { grid-column: auto; }
+      #metrics { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
+  <header>
+    <div class="brand">
+      <div class="mark">PS</div>
+      <div><h1>PathSnap Evaluator</h1><p>Trained map-matching pipeline and route reconstruction</p></div>
+    </div>
+  </header>
   <main>
-    <h1>PathSnap <small>Review 1</small></h1>
-    <section class="panel" aria-label="Trip viewer">
-      <form id="controls">
-        <label>API address <input id="api" type="url" required></label>
-        <button type="submit">Load trips</button>
-        <label>Trip <select id="trips" disabled><option value="">Select a trip</option></select></label>
-        <button type="button" id="retry" disabled>Retry prediction</button>
-      </form>
-      <p id="status" role="status" aria-live="polite"></p>
-      <canvas id="map" aria-label="Plan view of GPS observations and predicted route"></canvas>
-      <div class="legend">
-        <label><input id="show-gps" type="checkbox" checked><span class="dot"></span>GPS observations</label>
-        <label><input id="show-route" type="checkbox" checked><span class="line"></span>Predicted route</label>
+    <form id="controls" class="toolbar">
+      <label>API address<input id="api" type="url" required></label>
+      <label>Trip<select id="trips" disabled><option value="">Select a trip</option></select></label>
+      <button type="submit">Connect and load trips</button>
+    </form>
+    <p id="status" role="status" aria-live="polite">Connecting to the inference API…</p>
+    <section class="layout">
+      <div class="map-card">
+        <div id="map" aria-label="OpenStreetMap view of GPS observations and predicted route"></div>
+        <div class="map-footer">
+          <div class="legend"><span><i class="swatch gps"></i>GPS observations</span><span><i class="swatch"></i>Predicted route</span></div>
+          <span id="map-summary">Select a trip to view its route.</span>
+        </div>
       </div>
-      <dl id="metrics" aria-label="Trip metrics"></dl>
-      <ul id="warnings" aria-label="Route warnings"></ul>
+      <aside class="side-card">
+        <h2>Trip results</h2>
+        <dl id="metrics"><div><dt>Status</dt><dd>Waiting</dd></div></dl>
+        <p class="trip-note" id="trip-note">Choose a trip after the API connects. Predictions run on the server and are drawn over OpenStreetMap.</p>
+        <button type="button" id="retry" disabled>Retry prediction</button>
+        <ul id="warnings" aria-label="Route warnings"></ul>
+      </aside>
     </section>
   </main>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script>
     const byId = id => document.getElementById(id);
-    const api = byId("api");
-    const trips = byId("trips");
-    const retry = byId("retry");
-    const canvas = byId("map");
-    const status = byId("status");
-    const metrics = byId("metrics");
-    const warnings = byId("warnings");
-    let request = null;
-    let result = null;
+    const api = byId("api"), trips = byId("trips"), retry = byId("retry");
+    const status = byId("status"), metrics = byId("metrics"), warnings = byId("warnings");
+    const mapSummary = byId("map-summary"), tripNote = byId("trip-note");
+    let request = null, map = null, gpsLayer = null, routeLayer = null;
     api.value = new URLSearchParams(location.search).get("api") || "http://127.0.0.1:8000";
 
-    function setStatus(message, error = false) {
+    function setStatus(message, state = "") {
       status.textContent = message;
-      status.classList.toggle("error", error);
+      status.className = state;
     }
-
     function nextRequest() {
       request?.abort();
       request = new AbortController();
       return request.signal;
     }
-
     async function fetchJSON(path, signal, options = {}) {
       const address = api.value.trim().replace(/\/+$/, "");
       const response = await fetch(address + path, { ...options, signal });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(
-        payload.error?.message ??
-        (typeof payload.detail === "string" ? payload.detail : `HTTP ${response.status}`)
-      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error?.message ?? payload.detail ?? `HTTP ${response.status}`);
       return payload;
     }
-
-    function draw() {
-      const width = canvas.clientWidth;
-      const height = canvas.clientHeight;
-      const ratio = window.devicePixelRatio || 1;
-      canvas.width = Math.round(width * ratio);
-      canvas.height = Math.round(height * ratio);
-      const ctx = canvas.getContext("2d");
-      ctx.scale(ratio, ratio);
-      if (!result) return;
-
-      const gps = result.gps.coordinates;
-      const sections = result.predicted_route.coordinates;
-      const points = gps.concat(sections.flat());
-      if (!points.length) return;
-      let minLon = Infinity, minLat = Infinity, maxLon = -Infinity, maxLat = -Infinity;
-      for (const [lon, lat] of points) {
-        minLon = Math.min(minLon, lon);
-        maxLon = Math.max(maxLon, lon);
-        minLat = Math.min(minLat, lat);
-        maxLat = Math.max(maxLat, lat);
+    function initializeMap() {
+      if (!window.L) {
+        byId("map").innerHTML = '<div class="empty">The map library could not load. Check this laptop’s internet connection and refresh the page.</div>';
+        return;
       }
-      const lonScale = Math.cos((minLat + maxLat) * Math.PI / 360);
-      const scale = Math.min(
-        (width - 40) / Math.max((maxLon - minLon) * lonScale, 1e-7),
-        (height - 40) / Math.max(maxLat - minLat, 1e-7)
-      );
-      const project = ([lon, lat]) => [
-        width / 2 + (lon - (minLon + maxLon) / 2) * lonScale * scale,
-        height / 2 - (lat - (minLat + maxLat) / 2) * scale
-      ];
-
-      if (byId("show-route").checked) {
-        ctx.strokeStyle = "#04745e";
-        ctx.lineWidth = 3;
-        ctx.lineJoin = "round";
-        for (const line of sections) {
-          ctx.beginPath();
-          line.forEach((point, index) => {
-            const [x, y] = project(point);
-            if (index) ctx.lineTo(x, y);
-            else ctx.moveTo(x, y);
-          });
-          ctx.stroke();
-        }
-      }
-      if (byId("show-gps").checked) {
-        ctx.fillStyle = "#2753a5";
-        for (const point of gps) {
-          const [x, y] = project(point);
-          ctx.beginPath();
-          ctx.arc(x, y, 2.3, 0, 2 * Math.PI);
-          ctx.fill();
-        }
-      }
+      map = L.map("map", { preferCanvas: true }).setView([20, 0], 2);
+      const street = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'
+      }).addTo(map);
+      const humanitarian = L.tileLayer("https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png", {
+        maxZoom: 19, attribution: '&copy; OpenStreetMap contributors, Tiles style by HOT'
+      });
+      gpsLayer = L.layerGroup().addTo(map);
+      routeLayer = L.layerGroup().addTo(map);
+      L.control.layers({ "OpenStreetMap": street, "Humanitarian": humanitarian }, {
+        "GPS observations": gpsLayer, "Predicted route": routeLayer
+      }, { collapsed: false }).addTo(map);
     }
-
-    function show(data) {
-      result = data;
+    function clearMap() {
+      gpsLayer?.clearLayers();
+      routeLayer?.clearLayers();
+      mapSummary.textContent = "Select a trip to view its route.";
+    }
+    function renderMap(data) {
+      clearMap();
+      if (!map || !data) return;
+      const gps = data.gps?.coordinates ?? [];
+      const sections = data.predicted_route?.coordinates ?? [];
+      const bounds = [];
+      for (const [lon, lat] of gps) {
+        if (!Number.isFinite(lon) || !Number.isFinite(lat)) continue;
+        bounds.push([lat, lon]);
+        L.circleMarker([lat, lon], {
+          radius: 2.5, color: "#fff", weight: .7, fillColor: "#1f62d0", fillOpacity: .82
+        }).addTo(gpsLayer);
+      }
+      sections.forEach((section, index) => {
+        const coordinates = section
+          .filter(([lon, lat]) => Number.isFinite(lon) && Number.isFinite(lat))
+          .map(([lon, lat]) => [lat, lon]);
+        bounds.push(...coordinates);
+        if (coordinates.length > 1) L.polyline(coordinates, {
+          color: "#0c6b57", weight: 5, opacity: .9, lineCap: "round", lineJoin: "round"
+        }).bindTooltip(`Route section ${index + 1}`).addTo(routeLayer);
+      });
+      if (bounds.length) map.fitBounds(bounds, { padding: [28, 28], maxZoom: 17 });
+      setTimeout(() => map.invalidateSize(), 0);
+      mapSummary.textContent = `${gps.length.toLocaleString()} GPS points · ${sections.length.toLocaleString()} route sections`;
+    }
+    function showMetrics(data) {
       metrics.replaceChildren();
       warnings.replaceChildren();
-      if (data) {
-        const values = data.metrics ?? {};
-        const percentage = values.provisional_accuracy == null
-          ? "Unavailable" : `${(values.provisional_accuracy * 100).toFixed(2)}%`;
-        for (const [name, value] of [
-          ["GPS observations", values.observation_count],
-          ["Matched observations", values.matched_count],
-          ["Route sections", values.route_section_count],
-          ["Provisional accuracy", percentage]
-        ]) {
-          const item = document.createElement("div");
-          const title = document.createElement("dt");
-          const number = document.createElement("dd");
-          title.textContent = name;
-          number.textContent = value ?? "Unavailable";
-          item.append(title, number);
-          metrics.append(item);
-        }
-        for (const message of data.warnings ?? []) {
-          const item = document.createElement("li");
-          item.textContent = message.replaceAll("_", " ");
-          warnings.append(item);
-        }
+      if (!data) {
+        metrics.innerHTML = "<div><dt>Status</dt><dd>Waiting</dd></div>";
+        tripNote.textContent = "Choose a trip after the API connects. Predictions run on the server and are drawn over OpenStreetMap.";
+        return;
       }
-      draw();
+      const values = data.metrics ?? {};
+      const accuracy = values.provisional_accuracy == null ? "Unavailable" : `${(values.provisional_accuracy * 100).toFixed(2)}%`;
+      const rows = [
+        ["GPS observations", values.observation_count?.toLocaleString()],
+        ["Matched", values.matched_count?.toLocaleString()],
+        ["Route sections", values.route_section_count?.toLocaleString()],
+        ["Provisional accuracy", accuracy]
+      ];
+      for (const [name, value] of rows) {
+        const item = document.createElement("div");
+        const title = document.createElement("dt");
+        const number = document.createElement("dd");
+        title.textContent = name;
+        number.textContent = value ?? "Unavailable";
+        item.append(title, number);
+        metrics.append(item);
+      }
+      tripNote.textContent = `Trip ${data.trip_id} was scored by the trained candidate model and reconstructed with the directed Viterbi decoder.`;
+      for (const message of data.warnings ?? []) {
+        const item = document.createElement("li");
+        item.textContent = String(message).replaceAll("_", " ");
+        warnings.append(item);
+      }
     }
-
     async function loadTrips(event) {
       event?.preventDefault();
       const signal = nextRequest();
       trips.replaceChildren(new Option("Select a trip", ""));
       trips.disabled = retry.disabled = true;
-      show(null);
-      setStatus("Loading trips…");
+      clearMap();
+      showMetrics(null);
+      setStatus("Connecting and loading available trips…", "loading");
       try {
         const response = await fetchJSON("/trips", signal);
         if (signal.aborted) return;
-        for (const id of response.trip_ids) trips.add(new Option(id, id));
-        trips.disabled = !response.trip_ids.length;
-        setStatus(response.trip_ids.length ? "Select a trip." : "No trips available.");
+        for (const id of response.trip_ids ?? []) trips.add(new Option(id, id));
+        trips.disabled = !response.trip_ids?.length;
+        setStatus(response.trip_ids?.length ? `${response.trip_ids.length} trips available. Select one to run inference.` : "No trips are available.");
       } catch (error) {
-        if (!signal.aborted) setStatus(`Could not load trips. ${error.message}`, true);
+        if (!signal.aborted) setStatus(`Could not load trips. ${error.message}`, "error");
       }
     }
-
     async function predict() {
       const signal = nextRequest();
       const trip = trips.value;
-      show(null);
+      clearMap();
+      showMetrics(null);
       retry.disabled = true;
-      if (!trip) {
-        setStatus("Select a trip.");
-        return;
-      }
-      setStatus(`Reconstructing trip ${trip}…`);
+      if (!trip) { setStatus("Select a trip."); return; }
+      setStatus(`Running trained inference for trip ${trip}…`, "loading");
       try {
         const response = await fetchJSON("/predict", signal, {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ trip_id: trip })
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ trip_id: trip })
         });
         if (signal.aborted) return;
-        if (response.trip_id !== trip) throw new Error("Unexpected trip in response.");
-        show(response);
-        setStatus(`Showing trip ${trip}.`);
+        if (response.trip_id !== trip) throw new Error("The API returned a different trip.");
+        renderMap(response);
+        showMetrics(response);
+        setStatus(`Trip ${trip} is ready.`);
       } catch (error) {
         if (!signal.aborted) {
-          setStatus(`Prediction failed. ${error.message}`, true);
+          setStatus(`Prediction failed. ${error.message}`, "error");
           retry.disabled = false;
         }
       }
     }
-
     byId("controls").addEventListener("submit", loadTrips);
     trips.addEventListener("change", predict);
     retry.addEventListener("click", predict);
-    byId("show-gps").addEventListener("change", draw);
-    byId("show-route").addEventListener("change", draw);
-    new ResizeObserver(draw).observe(canvas);
+    initializeMap();
     loadTrips();
   </script>
 </body>

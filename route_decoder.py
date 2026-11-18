@@ -23,9 +23,20 @@ def load_fixture(path, data_dir):
     return fixture, nodes, arcs
 
 
-def decode(observations, nodes, arcs, max_gap_s=30):
+def decode(
+    observations,
+    nodes,
+    arcs,
+    max_gap_s=30,
+    backward_tolerance_m=30,
+    transition_scale_m=15,
+    max_speed_mps=55,
+    distance_slack_m=25,
+):
     if not observations:
         return [], [], []
+    nodes = np.asarray(nodes, dtype=float)
+    arcs = np.asarray(arcs, dtype=int)
     gps = np.asarray([[row["longitude"], row["latitude"]] for row in observations])
     lat = np.deg2rad(gps[:, 1].mean())
     metres = 111_195 * np.array([np.cos(lat), 1])
@@ -54,8 +65,10 @@ def decode(observations, nodes, arcs, max_gap_s=30):
     def transition(previous, current):
         a, b = previous["arc_id"], current["arc_id"]
         fa, fb = previous["arc_fraction"], current["arc_fraction"]
-        if a == b and fb >= fa:
-            return (fb - fa) * lengths[a], True
+        if a == b:
+            signed_distance = (fb - fa) * lengths[a]
+            if signed_distance >= -backward_tolerance_m:
+                return abs(signed_distance), True
         distances, _ = shortest_paths(int(arcs[a, 1]))
         return (1 - fa) * lengths[a] + distances.get(int(arcs[b, 0]), math.inf) + fb * lengths[b], False
 
@@ -123,9 +136,13 @@ def decode(observations, nodes, arcs, max_gap_s=30):
                         if not math.isfinite(scores[k]):
                             continue
                         distance, _ = transition(previous, candidate)
-                        if distance > min(1_500, 55 * gap + 50):
+                        if distance > min(1_500, max_speed_mps * gap + distance_slack_m):
                             continue
-                        value = scores[k] + emissions[j] - abs(distance - displacement) / 30
+                        value = (
+                            scores[k]
+                            + emissions[j]
+                            - abs(distance - displacement) / transition_scale_m
+                        )
                         if value > next_scores[j]:
                             next_scores[j], parents[j] = value, k
                 if any(parent >= 0 for parent in parents):

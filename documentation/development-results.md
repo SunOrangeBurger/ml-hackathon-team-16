@@ -42,3 +42,30 @@ Viterbi uses candidate arc positions as states, normalized classifier scores as 
 | Route sections | 1,974 | 84 |
 
 Viterbi improved route continuity and ordered similarity at a cost of 1.92 percentage points in pointwise agreement. Trip `00000009` improved from 82.65% to 86.94%, while `00000007` fell from 90.40% to 84.86%. The deployed configuration keeps Viterbi for its continuity benefit. Use the per-trip results to inspect where the transition cost steers the route away from the provisional labels. [Per-trip route comparison](results/route_comparison.csv).
+
+## Decoder correction and organizer holdout
+
+The original decoder treated any backward change in projected position on the same directed arc as a full road-network loop. Small GPS fluctuations therefore caused false impossible transitions and fragmented routes. A development-only grid search selected a 30 m backward projection tolerance, a 15 m transition discrepancy scale and 25 m of transition distance slack.
+
+On the ten student-test trips, the corrected decoder increased pointwise accuracy from **79.38% to 92.21%**, increased mean sequence similarity from **0.7604 to 0.9091**, reduced route sections from **84 to 15**, and reduced impossible transitions from **72 to 3**.
+
+The organizer-provided `evaluator_test` folder was kept out of training and configuration selection. The selected decoder achieved **93.39% aggregate pointwise accuracy** across 19,653 eligible observations, **0.8779 mean trip sequence similarity**, 16 route sections and one impossible transition. Per-trip pointwise accuracy was:
+
+| Trip | Accuracy | Route sections |
+| --- | ---: | ---: |
+| `00000015` | 89.26% | 2 |
+| `00000017` | 93.98% | 1 |
+| `00000023` | 94.98% | 1 |
+| `00000030` | 85.93% | 1 |
+| `00000049` | 99.55% | 1 |
+| `00000059` | 97.38% | 1 |
+| `00000067` | 95.63% | 1 |
+| `00000073` | 98.34% | 6 |
+| `00000087` | 98.14% | 1 |
+| `00000094` | 92.38% | 1 |
+
+The evaluator labels remain provisional geometric alignments to the supplied reference route. Trip `00000015` is the largest residual error source and has 6,833 of the 19,653 eligible observations.
+
+## CUDA ranking experiment
+
+A listwise multilayer candidate ranker was trained on the NVIDIA GeForce RTX 4050 using PyTorch and three grouped trip folds. It directly optimized the correct candidate within each GPS observation. Mean grouped-CV Top-1 accuracy was **79.20%**, compared with **79.04%** for the deployed histogram-gradient model on the same folds. The small and inconsistent 0.16-point difference did not justify replacing the existing artifact. The experiment is reproducible with `gpu_ranker.py` and `requirements-gpu.txt`.
