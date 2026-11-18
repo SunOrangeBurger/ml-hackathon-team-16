@@ -1,5 +1,9 @@
 # PathSnap backup implementation
 
+See the [architecture and technical summary](documentation/architecture-and-technical-summary.md)
+for the data pipeline, model choices, training settings, decoder weights, accuracy
+improvements, API, evaluation limitations and two-laptop run instructions.
+
 The evaluator includes five saved classifier choices. Run `python build_model_catalog.py`
 to rebuild their artifacts and aggregate scores from the supplied training, student-test
 and evaluator folders. Models are ordered by student-test decoded accuracy.
