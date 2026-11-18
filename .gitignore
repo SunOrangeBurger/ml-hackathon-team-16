@@ -3,4 +3,8 @@ __pycache__/
 *.pyo
 .pytest_cache/
 .streamlit/
+.venv/
 *.html
+/output/
+/Student folder/
+/PathSnap_student_materials/

@@ -48,8 +48,10 @@ class BackendAPIClient:
             data = resp.json()
             if isinstance(data, list):
                 return [str(t) for t in data]
-            elif isinstance(data, dict) and "trips" in data:
-                return [str(t) for t in data["trips"]]
+            if isinstance(data, dict):
+                trip_ids = data.get("trip_ids", data.get("trips"))
+                if isinstance(trip_ids, list):
+                    return [str(trip_id) for trip_id in trip_ids]
             raise ValueError("Unexpected response format from GET /trips")
         except Exception as e:
             raise RuntimeError(f"Failed to fetch trips from {self.base_url}/trips: {str(e)}")

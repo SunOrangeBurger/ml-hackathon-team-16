@@ -9,6 +9,7 @@ Complies with GeoJSON specs:
 """
 
 import json
+from html import escape
 from typing import Dict, Any, List
 
 def flip_geojson_coordinates(coords: List[float]) -> List[float]:
@@ -23,7 +24,7 @@ def get_leaflet_map_html(trip_data: Dict[str, Any], height: int = 600) -> str:
     Renders an interactive Leaflet map matching the exact layers and styling
     required by the hackathon evaluation guidelines.
     """
-    trip_id = trip_data.get("trip_id", "Unknown")
+    trip_id = escape(str(trip_data.get("trip_id", "Unknown")))
     gps = trip_data.get("gps", {}).get("coordinates", [])
     pred_segments = trip_data.get("predicted_route", {}).get("coordinates", [])
     ref_segments = trip_data.get("reference_route", {}).get("coordinates", []) if trip_data.get("reference_route") else []
@@ -63,6 +64,7 @@ def get_leaflet_map_html(trip_data: Dict[str, Any], height: int = 600) -> str:
     ref_json = json.dumps(ref_latlng_segments)
     bounds_json = json.dumps(bounds)
     center_json = json.dumps(center)
+    gap_json = json.dumps(has_discontinuity)
 
     html_content = f"""
 <!DOCTYPE html>
@@ -246,7 +248,9 @@ def get_leaflet_map_html(trip_data: Dict[str, Any], height: int = 600) -> str:
             if (refSegments.length > 0) {{
                 html += '<div class="legend-item"><span class="legend-color" style="background:#10b981;border-bottom:2px dashed #059669"></span> Reference Route</div>';
             }}
-            {'html += \'<div class="legend-item" style="color:#b91c1c;font-weight:600;">⚠ Route contains gaps</div>\';' if has_discontinuity else ''}
+            if ({gap_json}) {{
+                html += '<div class="legend-item" style="color:#b91c1c;font-weight:600;">&#9888; Route contains gaps</div>';
+            }}
             div.innerHTML = html;
             return div;
         }};

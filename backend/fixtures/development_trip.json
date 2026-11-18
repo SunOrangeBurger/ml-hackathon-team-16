@@ -1,0 +1,24 @@
+{
+  "trip_id": "synthetic",
+  "gps": {
+    "type": "MultiPoint",
+    "coordinates": [
+      [8.00005, 49.0],
+      [8.00015, 49.00003]
+    ]
+  },
+  "predicted_route": {
+    "type": "MultiLineString",
+    "coordinates": [
+      [
+        [8.0, 49.0],
+        [8.0001, 49.0],
+        [8.0002, 49.0]
+      ]
+    ]
+  },
+  "metrics": null,
+  "warnings": [
+    "Development fixture only; this response is not a live model prediction."
+  ]
+}

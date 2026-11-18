@@ -4,9 +4,11 @@ The challenge brief schedules Review 1 before lunch and describes a final evalua
 
 ## Review 1 requirements
 
-- [ ] Inventory the 80 training and 10 student-testing trips and document file schemas, missing data, timestamp gaps and road connectivity.
-- [ ] Show a Folium map for a training trip with raw GPS, road geometry and the supplied reference route.
-- [ ] Demonstrate candidate generation and label alignment on a training trip. Record baseline candidate coverage and export a scored fixture for the decoder.
+- [x] Inventory the 80 training and 10 student-testing trips and document file schemas, missing data, timestamp gaps and road connectivity.
+- [x] Generate a Folium map for a training trip with raw GPS, road geometry and the supplied reference route.
+- [x] Demonstrate candidate generation and label alignment on a training trip. Record baseline candidate coverage and export a scored fixture for the decoder.
+
+See the [Review 1 run instructions and results](review-1-data-and-model.md).
 
 ## Final evaluation requirements
 

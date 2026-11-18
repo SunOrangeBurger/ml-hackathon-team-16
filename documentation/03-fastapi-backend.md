@@ -4,9 +4,55 @@ The challenge brief schedules Review 1 before lunch and describes a final evalua
 
 ## Review 1 requirements
 
-- [ ] Run a FastAPI stub with a health check, a trip list and a prediction endpoint backed by development fixtures.
-- [ ] Share a valid response and representative error payload with the UI owner.
+- [x] Run a FastAPI stub with a health check, a trip list and a prediction endpoint backed by development fixtures.
+- [x] Define a valid response and representative error payload for the UI owner.
 - [ ] Demonstrate a request from the second laptop and its corresponding log entry on the receiving laptop.
+
+The fixture service is implemented in [`backend/app.py`](../backend/app.py) and returns the synthetic decoder example. It is an integration stub, not model inference. The current checkout does not contain trained model or evaluator artifacts.
+
+### Run the development service
+
+Install dependencies and run from the project root:
+
+```powershell
+python -m pip install -r requirements.txt
+uvicorn backend.app:app --host 0.0.0.0 --port 8000
+```
+
+`0.0.0.0` allows Laptop 2 to connect. Set `PATHSNAP_CORS_ORIGINS` to a comma-separated list of the UI's exact origins if it runs in a browser, for example `http://localhost:5173`. `PATHSNAP_FIXTURE_PATH` can point to another response fixture with the same schema.
+
+```powershell
+curl http://localhost:8000/health
+curl http://localhost:8000/trips
+curl -H "Content-Type: application/json" -d '{"trip_id":"synthetic"}' http://localhost:8000/predict
+```
+
+The API also exposes its OpenAPI document at `/openapi.json` and interactive docs at `/docs`.
+
+### Contract and errors
+
+- `GET /health` returns `{"status":"ready","mode":"fixture"}` or HTTP 503 with `status: "not_ready"`.
+- `GET /trips` returns `{"trip_ids":["synthetic"]}`. IDs remain strings.
+- `POST /predict` accepts `{"trip_id":"synthetic"}` and responds with the fields in the documented response shape below.
+- Error responses use `{"error":{"code":"...","message":"..."},"request_id":"..."}`. Invalid requests return 422 with `error.details`; unknown IDs return 404 with `unknown_trip`; unavailable inference returns 503 with `inference_unavailable`.
+- Every response includes `X-Request-ID`; Laptop 1 logs the request ID, trip ID (when provided), status and duration.
+- GeoJSON coordinates are `[longitude, latitude]`. Metrics are `null` in the fixture; the fixture warning identifies that the response is not a live prediction.
+
+Example fixture response:
+
+```json
+{
+  "trip_id": "synthetic",
+  "gps": {"type": "MultiPoint", "coordinates": [[8.00005, 49.0], [8.00015, 49.00003]]},
+  "predicted_route": {"type": "MultiLineString", "coordinates": [[[8.0, 49.0], [8.0001, 49.0], [8.0002, 49.0]]]},
+  "metrics": null,
+  "warnings": ["Development fixture only; this response is not a live model prediction."]
+}
+```
+
+Set `PATHSNAP_MODE=artifact` to ensure the service reports not-ready until an artifact-backed inference provider is integrated. It intentionally does not fall back to fixture predictions in that mode.
+
+Run the focused API tests with `python -m pytest tests/test_backend.py`.
 
 ## Final evaluation requirements
 
