@@ -31,28 +31,13 @@ The outputs are written to `output/trips/00000001/`.
 
 See [Review 1 results and reproduction steps](review-1-data-and-model.md).
 
-## 18 November 2026 — Integrated Review 1 backup
+## 18 November 2026 — Workstream 02, Review 1 decoder
 
 | Area | Decision and reason | Effect and follow-up |
 | --- | --- | --- |
-| API fixture | The development service runs the Viterbi decoder against recorded candidate scores when a trip is selected. | The UI exercises the actual interface and route reconstruction. Model-based scoring remains a final-evaluation task. |
-| UI visualization | The evaluator renders the returned coordinates as a local plan view, so the demo works without external map tiles. | The separately generated Folium audit map supplies the geographic basemap, candidate roads, and development reference overlay. |
-| Laptop verification | Verified the API and UI as separate HTTP services on one machine. Edge loaded both fixture trips, rendered both layers, and recovered from a simulated 503 using Retry. The API logged successful requests and an unknown-trip 404. | Repeat the browser request from a second physical laptop and capture the corresponding API log during the review. |
+| Candidate interface | Reused the candidate fields already exported by Workstream 01: observation index, trip-local directed arc ID, source-to-destination arc fraction and probability in `[0, 1]`. | This provides a concrete decoder handoff without changing the model workstream. Confirm scorer-owner agreement and parity when the trained scorer is integrated. |
+| Implementation scope | Added a standalone, standard-library decoder and a checked-in synthetic graph/score fixture rather than adding a model or API dependency. | Synthetic Review 1 demo and tests run without the unavailable dataset. Run the file-backed command when Workstream 01 artifacts and data are present. |
+| Transition policy | Used shortest directed network distance, a 55 m/s hard speed ceiling, a 15 m/s soft transition scale, a 1 m tolerance and a 60-second gap restart for the demonstration. | These defaults make behavior explicit and reproducible, but are not calibrated. Tune using allowed development trips before final evaluation. |
+| Discontinuities | Empty observations remain explicitly unmatched; long gaps and impossible transitions split route sections and generate warnings rather than joining them with straight lines. | FastAPI can consume assignments, sections and warning codes. Validate the response shape during backend integration. |
 
-On trip `00000001`, the decoder assigned all 1,315 observations, split the route into two sections after one impossible transition, and agreed with 97.34% of the provisional aligned labels. This measurement uses one training fixture and serves as an integration check.
-
-## 18 November 2026 — Trained pipeline on the backup branch
-
-- Use provisional ordered alignment and exclude observations more than 50 m from the aligned reference. The exclusion disproportionately affects trip `00000054`.
-- Sample per trip for comparison and Bayesian search, then refit the selected configuration on all eligible training observations. The search retained the starting histogram gradient boosting configuration.
-- Keep the existing Viterbi transition settings for the measured continuity improvement. Pointwise agreement declined on student test, so the results document both outcomes.
-- Support organizer-provided trip directories through a server-side manifest. Reserve the physical two-laptop evaluator demonstration for when the official data is available.
-
-See [development results](development-results.md).
-
-## 18 November 2026 — Organizer holdout and decoder correction
-
-- Keep `evaluator_test` completely outside training and configuration selection. It contains ten trips with reference routes and is used once as an organizer holdout.
-- Permit up to 30 m of backward projected motion on the same directed arc to absorb GPS jitter. Select transition scale and slack on student-test trips.
-- Retain histogram gradient boosting. The CUDA listwise ranker produced only a small, inconsistent grouped-CV improvement.
-- Deploy the corrected decoder defaults after they improved student-test pointwise accuracy to 92.21% and organizer-holdout accuracy to 93.39%.
+Verification on this checkpoint: the synthetic pointwise winners are `[0, 2]` and the decoded connected assignments are `[0, 1]`; all eight focused standard-library tests pass. A generated real candidate fixture is present under the ignored `output/review-1/` directory, but its referenced graph files are not currently available at the documented `Student folder/Student folder` path, so the real-fixture decode could not be rerun. Trained-scorer parity, tuning and runtime measurements remain follow-ups.
