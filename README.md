@@ -1,5 +1,12 @@
 # PathSnap backup implementation
 
+The evaluator includes five saved classifier choices. Run `python build_model_catalog.py`
+to rebuild their artifacts and aggregate scores from the supplied training, student-test
+and evaluator folders. Models are ordered by student-test decoded accuracy.
+The displayed combined accuracy weights each eligible observation equally across
+student-test and organizer evaluator trips. Each split is also shown separately.
+These measurements use provisional geometric reference alignment.
+
 This branch combines the Workstream 01 audit and distance scores with a directed Viterbi decoder, a FastAPI development service, and an evaluator UI. It uses a synthetic fixture and training trip `00000001`.
 
 The branch also includes the trained model and a learned path from GPS observations to a decoded route. See [measured development results](documentation/development-results.md).

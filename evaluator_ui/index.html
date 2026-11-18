@@ -22,7 +22,7 @@
     h1 { margin: 0; font-size: clamp(1.45rem, 3vw, 2rem); letter-spacing: -.03em; }
     header p { margin: 4px 0 0; color: #bed5cf; }
     main { max-width: 1440px; margin: auto; padding: 22px; }
-    .toolbar { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(180px, 260px) auto; gap: 12px; align-items: end; padding: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); }
+    .toolbar { display: grid; grid-template-columns: minmax(220px, 1fr) 160px minmax(200px, 1fr) auto; gap: 12px; align-items: end; padding: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); }
     label { display: grid; gap: 6px; color: var(--muted); font-size: .78rem; font-weight: 750; letter-spacing: .04em; text-transform: uppercase; }
     input, select { width: 100%; min-height: 42px; padding: 9px 11px; color: var(--ink); background: white; border: 1px solid #aebbb8; border-radius: 8px; outline: none; }
     input:focus, select:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(12, 107, 87, .14); }
@@ -77,6 +77,7 @@
     <form id="controls" class="toolbar">
       <label>API address<input id="api" type="url" required></label>
       <label>Trip<select id="trips" disabled><option value="">Select a trip</option></select></label>
+      <label>Model<select id="models" disabled><option value="">Deployed model</option></select></label>
       <button type="submit">Connect and load trips</button>
     </form>
     <p id="status" role="status" aria-live="polite">Connecting to the inference API…</p>
@@ -91,6 +92,7 @@
       </div>
       <aside class="side-card">
         <h2>Trip results</h2>
+        <p id="aggregate"></p>
         <dl id="metrics"><div><dt>Status</dt><dd>Waiting</dd></div></dl>
         <p class="trip-note" id="trip-note">Choose a trip after the API connects. Predictions run on the server and are drawn over OpenStreetMap.</p>
         <button type="button" id="retry" disabled>Retry prediction</button>
@@ -107,6 +109,15 @@
     let request = null, map = null, gpsLayer = null, routeLayer = null, endpointLayer = null;
     let routeBounds = null;
     let referenceLayer = null;
+    let modelCatalog = [];
+    function showAggregate() {
+      const selected = modelCatalog.find(row => row.id === byId("models").value);
+      byId("aggregate").textContent = selected
+        ? "Across both evaluation sets: " + (selected.combined_accuracy * 100).toFixed(2)
+          + "% · Student-test: " + (selected.splits.student_test.accuracy * 100).toFixed(2)
+          + "% · Organizer: " + (selected.splits.evaluator_test.accuracy * 100).toFixed(2) + "%"
+        : "";
+    }
     api.value = new URLSearchParams(location.search).get("api") || "http://127.0.0.1:8000";
 
     function setStatus(message, state = "") {
@@ -257,6 +268,13 @@
       showMetrics(null);
       setStatus("Connecting and loading available trips…", "loading");
       try {
+        const catalog = await fetchJSON("/models", signal);
+        modelCatalog = catalog.models;
+        const models = byId("models");
+        models.replaceChildren();
+        for (const row of modelCatalog) models.add(new Option(row.label, row.id));
+        models.disabled = !modelCatalog.length;
+        showAggregate();
         const response = await fetchJSON("/trips", signal);
         if (signal.aborted) return;
         for (const id of response.trip_ids ?? []) trips.add(new Option(id, id));
@@ -280,7 +298,8 @@
       setStatus(`Running trained inference for trip ${trip}…`, "loading");
       try {
         const response = await fetchJSON("/predict", signal, {
-          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ trip_id: trip })
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ trip_id: trip, model_id: byId("models").value || null })
         });
         if (signal.aborted) return;
         if (response.trip_id !== trip) throw new Error("The API returned a different trip.");
@@ -296,6 +315,7 @@
     }
     byId("controls").addEventListener("submit", loadTrips);
     trips.addEventListener("change", predict);
+    byId("models").addEventListener("change", () => { showAggregate(); predict(); });
     retry.addEventListener("click", predict);
     byId("fit-route").addEventListener("click", () => {
       if (routeBounds) map.fitBounds(routeBounds, { padding: [28, 28], maxZoom: 17 });

@@ -40,6 +40,21 @@ app.add_middleware(
 
 class PredictionRequest(BaseModel):
     trip_id: str
+    model_id: str | None = None
+
+
+@lru_cache(maxsize=5)
+def catalog_artifact(model_id):
+    catalog = json.loads((ROOT / "artifacts/models/catalog.json").read_text(encoding="utf-8"))
+    if model_id not in {row["id"] for row in catalog}:
+        raise HTTPException(404, "Unknown model")
+    return load_artifact(ROOT / "artifacts/models" / f"{model_id}.joblib")
+
+
+@app.get("/models")
+def models():
+    path = ROOT / "artifacts/models/catalog.json"
+    return {"models": json.loads(path.read_text(encoding="utf-8")) if path.exists() else []}
 
 
 @lru_cache(maxsize=1)
@@ -113,7 +128,7 @@ def predict(payload: PredictionRequest, request: Request):
     trip_id = payload.trip_id
     request.state.trip_id = trip_id
     if MODE != "review":
-        return predict_learned(trip_id)
+        return predict_learned(trip_id, payload.model_id)
     if trip_id not in FIXTURES:
         raise HTTPException(404, "Unknown development trip")
     try:
@@ -139,8 +154,10 @@ def predict(payload: PredictionRequest, request: Request):
     return prediction_response(trip_id, observations, sections, metrics, warnings)
 
 
-def predict_learned(trip_id):
+def predict_learned(trip_id, model_id=None):
     artifact, folders = ready_service()
+    if model_id is not None:
+        artifact = catalog_artifact(model_id)
     if trip_id not in folders:
         raise HTTPException(404, "Unknown trip")
     try:
