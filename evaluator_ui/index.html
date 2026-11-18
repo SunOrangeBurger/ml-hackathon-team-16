@@ -5,8 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>PathSnap Evaluator</title>
   <link rel="preconnect" href="https://tile.openstreetmap.org">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    integrity="sha256-p4NxAoJBhIINfQ3ynh/W6G8fSQC2edbFhE/1I7TQTQ=" crossorigin="">
+  <link rel="stylesheet" href="vendor/leaflet.css">
   <style>
     :root {
       --ink: #172224; --muted: #637174; --line: #d7dfde; --surface: #fff;
@@ -87,6 +86,7 @@
         <div class="map-footer">
           <div class="legend"><span><i class="swatch gps"></i>GPS observations</span><span><i class="swatch"></i>Predicted route</span></div>
           <span id="map-summary">Select a trip to view its route.</span>
+          <button type="button" id="fit-route" disabled>Fit route</button>
         </div>
       </div>
       <aside class="side-card">
@@ -98,14 +98,14 @@
       </aside>
     </section>
   </main>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="vendor/leaflet.js"></script>
   <script>
     const byId = id => document.getElementById(id);
     const api = byId("api"), trips = byId("trips"), retry = byId("retry");
     const status = byId("status"), metrics = byId("metrics"), warnings = byId("warnings");
     const mapSummary = byId("map-summary"), tripNote = byId("trip-note");
     let request = null, map = null, gpsLayer = null, routeLayer = null;
+    let routeBounds = null;
     api.value = new URLSearchParams(location.search).get("api") || "http://127.0.0.1:8000";
 
     function setStatus(message, state = "") {
@@ -130,9 +130,12 @@
         return;
       }
       map = L.map("map", { preferCanvas: true }).setView([20, 0], 2);
-      const street = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      const street = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'
       }).addTo(map);
+      street.on("tileerror", () => {
+        mapSummary.textContent = "Some basemap tiles could not load. GPS and route layers remain available.";
+      });
       const humanitarian = L.tileLayer("https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png", {
         maxZoom: 19, attribution: '&copy; OpenStreetMap contributors, Tiles style by HOT'
       });
@@ -143,6 +146,8 @@
       }, { collapsed: false }).addTo(map);
     }
     function clearMap() {
+      routeBounds = null;
+      byId("fit-route").disabled = true;
       gpsLayer?.clearLayers();
       routeLayer?.clearLayers();
       mapSummary.textContent = "Select a trip to view its route.";
@@ -169,7 +174,11 @@
           color: "#0c6b57", weight: 5, opacity: .9, lineCap: "round", lineJoin: "round"
         }).bindTooltip(`Route section ${index + 1}`).addTo(routeLayer);
       });
-      if (bounds.length) map.fitBounds(bounds, { padding: [28, 28], maxZoom: 17 });
+      if (bounds.length) {
+        routeBounds = L.latLngBounds(bounds);
+        map.fitBounds(routeBounds, { padding: [28, 28], maxZoom: 17 });
+        byId("fit-route").disabled = false;
+      }
       setTimeout(() => map.invalidateSize(), 0);
       mapSummary.textContent = `${gps.length.toLocaleString()} GPS points · ${sections.length.toLocaleString()} route sections`;
     }
@@ -219,6 +228,10 @@
         for (const id of response.trip_ids ?? []) trips.add(new Option(id, id));
         trips.disabled = !response.trip_ids?.length;
         setStatus(response.trip_ids?.length ? `${response.trip_ids.length} trips available. Select one to run inference.` : "No trips are available.");
+        if (response.trip_ids?.length) {
+          trips.value = response.trip_ids[0];
+          await predict();
+        }
       } catch (error) {
         if (!signal.aborted) setStatus(`Could not load trips. ${error.message}`, "error");
       }
@@ -250,6 +263,9 @@
     byId("controls").addEventListener("submit", loadTrips);
     trips.addEventListener("change", predict);
     retry.addEventListener("click", predict);
+    byId("fit-route").addEventListener("click", () => {
+      if (routeBounds) map.fitBounds(routeBounds, { padding: [28, 28], maxZoom: 17 });
+    });
     initializeMap();
     loadTrips();
   </script>
