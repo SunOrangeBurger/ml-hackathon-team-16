@@ -33,6 +33,7 @@ def decode(
     max_speed_mps=55,
     distance_slack_m=25,
     detour_penalty=2,
+    uturn_penalty=6,
 ):
     if not observations:
         return [], [], []
@@ -145,6 +146,14 @@ def decode(
                             - abs(distance - displacement) / transition_scale_m
                             - detour_penalty * max(0, distance - displacement - 10) / transition_scale_m
                         )
+                        previous_arc = previous["arc_id"]
+                        current_arc = candidate["arc_id"]
+                        if (
+                            previous_arc != current_arc
+                            and arcs[previous_arc, 0] == arcs[current_arc, 1]
+                            and arcs[previous_arc, 1] == arcs[current_arc, 0]
+                        ):
+                            value -= uturn_penalty
                         if value > next_scores[j]:
                             next_scores[j], parents[j] = value, k
                 if any(parent >= 0 for parent in parents):
