@@ -1,0 +1,91 @@
+{
+  "config": {
+    "detour_penalty": 2
+  },
+  "pointwise_accuracy": 0.9418409403144558,
+  "mean_sequence_similarity": 0.902735974904356,
+  "sections": 16,
+  "impossible_transitions": 1,
+  "trips": [
+    {
+      "trip_id": "00000015",
+      "eligible": 6833,
+      "correct": 6189,
+      "sequence_similarity": 0.516,
+      "sections": 2,
+      "impossible_transitions": 1
+    },
+    {
+      "trip_id": "00000017",
+      "eligible": 1346,
+      "correct": 1276,
+      "sequence_similarity": 0.9342327150084317,
+      "sections": 1,
+      "impossible_transitions": 0
+    },
+    {
+      "trip_id": "00000023",
+      "eligible": 458,
+      "correct": 442,
+      "sequence_similarity": 0.9,
+      "sections": 1,
+      "impossible_transitions": 0
+    },
+    {
+      "trip_id": "00000030",
+      "eligible": 654,
+      "correct": 568,
+      "sequence_similarity": 0.8927875243664717,
+      "sections": 1,
+      "impossible_transitions": 0
+    },
+    {
+      "trip_id": "00000049",
+      "eligible": 2642,
+      "correct": 2632,
+      "sequence_similarity": 1.0,
+      "sections": 1,
+      "impossible_transitions": 0
+    },
+    {
+      "trip_id": "00000059",
+      "eligible": 1031,
+      "correct": 1009,
+      "sequence_similarity": 0.9655172413793104,
+      "sections": 1,
+      "impossible_transitions": 0
+    },
+    {
+      "trip_id": "00000067",
+      "eligible": 916,
+      "correct": 880,
+      "sequence_similarity": 0.9726027397260274,
+      "sections": 1,
+      "impossible_transitions": 0
+    },
+    {
+      "trip_id": "00000073",
+      "eligible": 1144,
+      "correct": 1129,
+      "sequence_similarity": 0.9785407725321889,
+      "sections": 6,
+      "impossible_transitions": 0
+    },
+    {
+      "trip_id": "00000087",
+      "eligible": 1399,
+      "correct": 1373,
+      "sequence_similarity": 0.9773242630385488,
+      "sections": 1,
+      "impossible_transitions": 0
+    },
+    {
+      "trip_id": "00000094",
+      "eligible": 3230,
+      "correct": 3012,
+      "sequence_similarity": 0.8903544929925804,
+      "sections": 1,
+      "impossible_transitions": 0
+    }
+  ]
+}

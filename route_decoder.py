@@ -32,6 +32,7 @@ def decode(
     transition_scale_m=15,
     max_speed_mps=55,
     distance_slack_m=25,
+    detour_penalty=2,
 ):
     if not observations:
         return [], [], []
@@ -142,6 +143,7 @@ def decode(
                             scores[k]
                             + emissions[j]
                             - abs(distance - displacement) / transition_scale_m
+                            - detour_penalty * max(0, distance - displacement - 10) / transition_scale_m
                         )
                         if value > next_scores[j]:
                             next_scores[j], parents[j] = value, k
