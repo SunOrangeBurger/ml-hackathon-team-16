@@ -26,21 +26,26 @@ def load_table(folder, extension, columns, dtype):
     return table
 
 
-def load_trip(folder):
+def load_trip(folder, include_reference=True):
     track = load_table(folder, "track", 3, float)
     nodes = load_table(folder, "nodes", 2, float)
     arcs = load_table(folder, "arcs", 2, np.int64)
-    route = load_table(folder, "route", 1, np.int64).ravel()
+    route = load_reference(folder, len(arcs)) if include_reference else np.empty(0, dtype=int)
     for coordinates in (track[:, :2], nodes):
         if (np.abs(coordinates) > [180, 90]).any():
             raise ValueError("Longitude or latitude is outside its valid range")
     if (arcs < 0).any() or (arcs >= len(nodes)).any():
         raise ValueError("An arc references a nonexistent node")
-    if (route < 0).any() or (route >= len(arcs)).any():
-        raise ValueError("The reference route contains a nonexistent arc")
     if (np.diff(track[:, 2]) < 0).any():
         raise ValueError("GPS timestamps decrease in file order")
     return Trip(track, nodes, arcs, route)
+
+
+def load_reference(folder, arc_count):
+    route = load_table(folder, "route", 1, np.int64).ravel()
+    if (route < 0).any() or (route >= arc_count).any():
+        raise ValueError("The reference route contains a nonexistent arc")
+    return route
 
 
 def segment_distances(point, starts, vectors, lengths_squared):
@@ -88,7 +93,7 @@ def road_geometry(trip, arc_ids):
     return [trip.nodes[trip.arcs[arc_id], ::-1].tolist() for arc_id in arc_ids]
 
 
-def save_map(path, trip, candidates):
+def save_map(path, trip, candidates, predicted_route=None):
     import folium
 
     points = trip.track[:, 1::-1]
@@ -102,6 +107,10 @@ def save_map(path, trip, candidates):
         if len(arc_ids):
             layer = folium.FeatureGroup(name=name).add_to(result)
             folium.PolyLine(road_geometry(trip, arc_ids), color=color, weight=weight).add_to(layer)
+    if predicted_route:
+        predicted = folium.FeatureGroup(name="Predicted route").add_to(result)
+        coordinates = [[point[::-1] for point in line] for line in predicted_route]
+        folium.PolyLine(coordinates, color="#9333ea", weight=4).add_to(predicted)
     gps = folium.FeatureGroup(name="GPS observations").add_to(result)
     for index, (point, group) in enumerate(zip(points, candidates)):
         folium.CircleMarker(
@@ -114,7 +123,8 @@ def save_map(path, trip, candidates):
     result.get_root().html.add_child(folium.Element(
         '<aside style="position:fixed;bottom:24px;left:12px;z-index:9999;background:white;'
         'padding:8px;border:1px solid #aaa">Blue: GPS · Red: GPS without candidates<br>'
-        'Green: reference route · Gray: candidate roads</aside>'
+        'Green: reference route · Gray: candidate roads'
+        + ('<br>Purple: predicted route' if predicted_route else '') + '</aside>'
     ))
     result.save(str(path))
 

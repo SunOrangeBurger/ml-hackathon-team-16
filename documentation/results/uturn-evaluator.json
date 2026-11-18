@@ -1,0 +1,188 @@
+{
+  "results": [
+    {
+      "config": {
+        "uturn_penalty": 0
+      },
+      "pointwise_accuracy": 0.9418409403144558,
+      "mean_sequence_similarity": 0.902735974904356,
+      "sections": 16,
+      "impossible_transitions": 1,
+      "trips": [
+        {
+          "trip_id": "00000015",
+          "eligible": 6833,
+          "correct": 6189,
+          "sequence_similarity": 0.516,
+          "sections": 2,
+          "impossible_transitions": 1
+        },
+        {
+          "trip_id": "00000017",
+          "eligible": 1346,
+          "correct": 1276,
+          "sequence_similarity": 0.9342327150084317,
+          "sections": 1,
+          "impossible_transitions": 0
+        },
+        {
+          "trip_id": "00000023",
+          "eligible": 458,
+          "correct": 442,
+          "sequence_similarity": 0.9,
+          "sections": 1,
+          "impossible_transitions": 0
+        },
+        {
+          "trip_id": "00000030",
+          "eligible": 654,
+          "correct": 568,
+          "sequence_similarity": 0.8927875243664717,
+          "sections": 1,
+          "impossible_transitions": 0
+        },
+        {
+          "trip_id": "00000049",
+          "eligible": 2642,
+          "correct": 2632,
+          "sequence_similarity": 1.0,
+          "sections": 1,
+          "impossible_transitions": 0
+        },
+        {
+          "trip_id": "00000059",
+          "eligible": 1031,
+          "correct": 1009,
+          "sequence_similarity": 0.9655172413793104,
+          "sections": 1,
+          "impossible_transitions": 0
+        },
+        {
+          "trip_id": "00000067",
+          "eligible": 916,
+          "correct": 880,
+          "sequence_similarity": 0.9726027397260274,
+          "sections": 1,
+          "impossible_transitions": 0
+        },
+        {
+          "trip_id": "00000073",
+          "eligible": 1144,
+          "correct": 1129,
+          "sequence_similarity": 0.9785407725321889,
+          "sections": 6,
+          "impossible_transitions": 0
+        },
+        {
+          "trip_id": "00000087",
+          "eligible": 1399,
+          "correct": 1373,
+          "sequence_similarity": 0.9773242630385488,
+          "sections": 1,
+          "impossible_transitions": 0
+        },
+        {
+          "trip_id": "00000094",
+          "eligible": 3230,
+          "correct": 3012,
+          "sequence_similarity": 0.8903544929925804,
+          "sections": 1,
+          "impossible_transitions": 0
+        }
+      ],
+      "sharp_geometry_reversals": 3721
+    },
+    {
+      "config": {
+        "uturn_penalty": 6
+      },
+      "pointwise_accuracy": 0.953035160026459,
+      "mean_sequence_similarity": 0.9464653836550034,
+      "sections": 16,
+      "impossible_transitions": 1,
+      "trips": [
+        {
+          "trip_id": "00000015",
+          "eligible": 6833,
+          "correct": 6339,
+          "sequence_similarity": 0.7974683544303798,
+          "sections": 2,
+          "impossible_transitions": 1
+        },
+        {
+          "trip_id": "00000017",
+          "eligible": 1346,
+          "correct": 1284,
+          "sequence_similarity": 0.9438775510204082,
+          "sections": 1,
+          "impossible_transitions": 0
+        },
+        {
+          "trip_id": "00000023",
+          "eligible": 458,
+          "correct": 443,
+          "sequence_similarity": 0.9310344827586207,
+          "sections": 1,
+          "impossible_transitions": 0
+        },
+        {
+          "trip_id": "00000030",
+          "eligible": 654,
+          "correct": 582,
+          "sequence_similarity": 0.92,
+          "sections": 1,
+          "impossible_transitions": 0
+        },
+        {
+          "trip_id": "00000049",
+          "eligible": 2642,
+          "correct": 2632,
+          "sequence_similarity": 1.0,
+          "sections": 1,
+          "impossible_transitions": 0
+        },
+        {
+          "trip_id": "00000059",
+          "eligible": 1031,
+          "correct": 1014,
+          "sequence_similarity": 0.9739130434782609,
+          "sections": 1,
+          "impossible_transitions": 0
+        },
+        {
+          "trip_id": "00000067",
+          "eligible": 916,
+          "correct": 884,
+          "sequence_similarity": 0.9861111111111112,
+          "sections": 1,
+          "impossible_transitions": 0
+        },
+        {
+          "trip_id": "00000073",
+          "eligible": 1144,
+          "correct": 1131,
+          "sequence_similarity": 0.9848812095032398,
+          "sections": 6,
+          "impossible_transitions": 0
+        },
+        {
+          "trip_id": "00000087",
+          "eligible": 1399,
+          "correct": 1373,
+          "sequence_similarity": 0.9773242630385488,
+          "sections": 1,
+          "impossible_transitions": 0
+        },
+        {
+          "trip_id": "00000094",
+          "eligible": 3230,
+          "correct": 3048,
+          "sequence_similarity": 0.9500438212094654,
+          "sections": 1,
+          "impossible_transitions": 0
+        }
+      ],
+      "sharp_geometry_reversals": 3732
+    }
+  ]
+}

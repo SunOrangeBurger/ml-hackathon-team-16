@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PathSnap Evaluator</title>
+  <link rel="preconnect" href="https://tile.openstreetmap.org">
+  <link rel="stylesheet" href="vendor/leaflet.css">
+  <style>
+    :root {
+      --ink: #172224; --muted: #637174; --line: #d7dfde; --surface: #fff;
+      --canvas: #f3f6f5; --green: #0c6b57; --green-dark: #075143;
+      --green-soft: #e8f4f0; --blue: #1f62d0; --red: #b42318;
+      --shadow: 0 18px 48px rgba(30, 52, 47, .10);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--canvas); color: var(--ink); font: 15px/1.45 Inter, ui-sans-serif, system-ui, sans-serif; }
+    button, input, select { font: inherit; }
+    header { background: #102d27; color: white; padding: 28px max(24px, calc((100vw - 1440px) / 2)); }
+    .brand { display: flex; align-items: center; gap: 14px; }
+    .mark { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 13px; background: #e2f4ed; color: var(--green-dark); font-weight: 900; }
+    h1 { margin: 0; font-size: clamp(1.45rem, 3vw, 2rem); letter-spacing: -.03em; }
+    header p { margin: 4px 0 0; color: #bed5cf; }
+    main { max-width: 1440px; margin: auto; padding: 22px; }
+    .toolbar { display: grid; grid-template-columns: minmax(220px, 1fr) 160px minmax(200px, 1fr) auto; gap: 12px; align-items: end; padding: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); }
+    label { display: grid; gap: 6px; color: var(--muted); font-size: .78rem; font-weight: 750; letter-spacing: .04em; text-transform: uppercase; }
+    input, select { width: 100%; min-height: 42px; padding: 9px 11px; color: var(--ink); background: white; border: 1px solid #aebbb8; border-radius: 8px; outline: none; }
+    input:focus, select:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(12, 107, 87, .14); }
+    button { min-height: 42px; padding: 9px 16px; border: 0; border-radius: 8px; background: var(--green); color: white; font-weight: 750; cursor: pointer; }
+    button:hover { background: var(--green-dark); }
+    button:disabled { cursor: default; opacity: .5; }
+    #status { display: flex; align-items: center; gap: 9px; min-height: 42px; margin: 12px 0; padding: 9px 13px; color: #36534c; background: var(--green-soft); border-radius: 9px; }
+    #status.error { color: var(--red); background: #fff0ee; }
+    #status.loading::before { content: ""; width: 15px; height: 15px; border: 2px solid #9dc7bd; border-top-color: var(--green); border-radius: 50%; animation: spin .75s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .layout { display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 16px; }
+    .map-card, .side-card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); }
+    #map { width: 100%; height: clamp(440px, 67vh, 760px); background: #dce8e4; }
+    .map-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; padding: 12px 15px; border-top: 1px solid var(--line); }
+    .legend { display: flex; flex-wrap: wrap; gap: 16px; }
+    .legend span { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); }
+    .swatch { width: 18px; height: 4px; border-radius: 8px; background: var(--green); }
+    .swatch.gps { height: 8px; width: 8px; border-radius: 50%; background: var(--blue); }
+    .side-card { padding: 17px; }
+    .side-card h2 { margin: 0 0 12px; font-size: 1.05rem; }
+    #metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin: 0; }
+    #metrics div { padding: 12px; background: #f5f8f7; border: 1px solid #e4eae8; border-radius: 9px; }
+    dt { color: var(--muted); font-size: .72rem; font-weight: 750; letter-spacing: .03em; text-transform: uppercase; }
+    dd { margin: 4px 0 0; font-size: 1.3rem; font-weight: 800; }
+    .trip-note { margin-top: 15px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); }
+    #warnings { margin: 12px 0 0; padding: 0; list-style: none; }
+    #warnings li { margin-top: 8px; padding: 9px 10px; color: #75420a; background: #fff7e8; border-left: 3px solid #e9a23b; border-radius: 5px; font-size: .85rem; }
+    .empty { display: grid; place-items: center; height: 100%; padding: 30px; color: #50615e; text-align: center; }
+    .leaflet-control-layers, .leaflet-control-zoom { border: 0 !important; box-shadow: 0 4px 18px rgba(20, 47, 40, .2) !important; }
+    @media (max-width: 900px) {
+      .toolbar { grid-template-columns: 1fr 1fr; }
+      .toolbar button { grid-column: span 2; }
+      .layout { grid-template-columns: 1fr; }
+      #map { height: 56vh; min-height: 390px; }
+    }
+    @media (max-width: 560px) {
+      main { padding: 12px; }
+      .toolbar { grid-template-columns: 1fr; }
+      .toolbar button { grid-column: auto; }
+      #metrics { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="mark">PS</div>
+      <div><h1>PathSnap Evaluator</h1><p>Trained map-matching pipeline and route reconstruction</p></div>
+    </div>
+  </header>
+  <main>
+    <form id="controls" class="toolbar">
+      <label>API address<input id="api" type="url" required></label>
+      <label>Trip<select id="trips" disabled><option value="">Select a trip</option></select></label>
+      <label>Model<select id="models" disabled><option value="">Deployed model</option></select></label>
+      <button type="submit">Connect and load trips</button>
+    </form>
+    <p id="status" role="status" aria-live="polite">Connecting to the inference API…</p>
+    <section class="layout">
+      <div class="map-card">
+        <div id="map" aria-label="OpenStreetMap view of GPS observations and predicted route"></div>
+        <div class="map-footer">
+          <div class="legend"><span><i class="swatch gps"></i>GPS observations</span><span><i class="swatch"></i>Predicted route</span><span id="reference-legend" hidden><i class="swatch" style="background:#b35a12"></i>Reference route</span></div>
+          <span id="map-summary">Select a trip to view its route.</span>
+          <button type="button" id="fit-route" disabled>Fit route</button>
+        </div>
+      </div>
+      <aside class="side-card">
+        <h2>Trip results</h2>
+        <p id="aggregate"></p>
+        <dl id="metrics"><div><dt>Status</dt><dd>Waiting</dd></div></dl>
+        <p class="trip-note" id="trip-note">Choose a trip after the API connects. Predictions run on the server and are drawn over OpenStreetMap.</p>
+        <button type="button" id="retry" disabled>Retry prediction</button>
+        <ul id="warnings" aria-label="Route warnings"></ul>
+      </aside>
+    </section>
+  </main>
+  <script src="vendor/leaflet.js"></script>
+  <script>
+    const byId = id => document.getElementById(id);
+    const api = byId("api"), trips = byId("trips"), retry = byId("retry");
+    const status = byId("status"), metrics = byId("metrics"), warnings = byId("warnings");
+    const mapSummary = byId("map-summary"), tripNote = byId("trip-note");
+    let request = null, map = null, gpsLayer = null, routeLayer = null, endpointLayer = null;
+    let routeBounds = null;
+    let referenceLayer = null;
+    let modelCatalog = [];
+    function showAggregate() {
+      const selected = modelCatalog.find(row => row.id === byId("models").value);
+      byId("aggregate").textContent = selected
+        ? "Across both evaluation sets: " + (selected.combined_accuracy * 100).toFixed(2)
+          + "% · Student-test: " + (selected.splits.student_test.accuracy * 100).toFixed(2)
+          + "% · Organizer: " + (selected.splits.evaluator_test.accuracy * 100).toFixed(2) + "%"
+        : "";
+    }
+    api.value = new URLSearchParams(location.search).get("api") || "http://127.0.0.1:8000";
+
+    function setStatus(message, state = "") {
+      status.textContent = message;
+      status.className = state;
+    }
+    function nextRequest() {
+      request?.abort();
+      request = new AbortController();
+      return request.signal;
+    }
+    async function fetchJSON(path, signal, options = {}) {
+      const address = api.value.trim().replace(/\/+$/, "");
+      const response = await fetch(address + path, { ...options, signal });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error?.message ?? payload.detail ?? `HTTP ${response.status}`);
+      return payload;
+    }
+    function initializeMap() {
+      if (!window.L) {
+        byId("map").innerHTML = '<div class="empty">The map library could not load. Check this laptop’s internet connection and refresh the page.</div>';
+        return;
+      }
+      map = L.map("map", { preferCanvas: true }).setView([20, 0], 2);
+      const street = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'
+      }).addTo(map);
+      street.on("tileerror", () => {
+        mapSummary.textContent = "Some basemap tiles could not load. GPS and route layers remain available.";
+      });
+      const humanitarian = L.tileLayer("https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png", {
+        maxZoom: 19, attribution: '&copy; OpenStreetMap contributors, Tiles style by HOT'
+      });
+      gpsLayer = L.layerGroup().addTo(map);
+      map.createPane("reference");
+      map.getPane("reference").style.zIndex = 390;
+      referenceLayer = L.layerGroup().addTo(map);
+      routeLayer = L.layerGroup().addTo(map);
+      endpointLayer = L.layerGroup().addTo(map);
+      L.control.layers({ "OpenStreetMap": street, "Humanitarian": humanitarian }, {
+        "GPS observations": gpsLayer, "Predicted route": routeLayer,
+        "Reference route": referenceLayer,
+        "Start and destination": endpointLayer
+      }, { collapsed: false }).addTo(map);
+    }
+    function clearMap() {
+      routeBounds = null;
+      byId("fit-route").disabled = true;
+      gpsLayer?.clearLayers();
+      routeLayer?.clearLayers();
+      endpointLayer?.clearLayers();
+      referenceLayer?.clearLayers();
+      byId("reference-legend").hidden = true;
+      mapSummary.textContent = "Select a trip to view its route.";
+    }
+    function renderMap(data) {
+      clearMap();
+      if (!map || !data) return;
+      const gps = data.gps?.coordinates ?? [];
+      const sections = data.predicted_route?.coordinates ?? [];
+      const bounds = [];
+      const reference = data.reference_route?.coordinates ?? [];
+      byId("reference-legend").hidden = !reference.length;
+      for (const section of reference) {
+        const coordinates = section.map(([lon, lat]) => [lat, lon]);
+        if (coordinates.length > 1) {
+          L.polyline(coordinates, {
+            pane: "reference", color: "#b35a12", weight: 9, opacity: .65
+          }).bindTooltip("Supplied reference route").addTo(referenceLayer);
+          bounds.push(...coordinates);
+        }
+      }
+      for (const [lon, lat] of gps) {
+        if (!Number.isFinite(lon) || !Number.isFinite(lat)) continue;
+        bounds.push([lat, lon]);
+        L.circleMarker([lat, lon], {
+          radius: 2.5, color: "#fff", weight: .7, fillColor: "#1f62d0", fillOpacity: .82
+        }).addTo(gpsLayer);
+      }
+      sections.forEach((section, index) => {
+        const coordinates = section
+          .filter(([lon, lat]) => Number.isFinite(lon) && Number.isFinite(lat))
+          .map(([lon, lat]) => [lat, lon]);
+        bounds.push(...coordinates);
+        if (coordinates.length > 1) L.polyline(coordinates, {
+          color: "#0c6b57", weight: 5, opacity: .9, lineCap: "round", lineJoin: "round"
+        }).bindTooltip(`Route section ${index + 1}`).addTo(routeLayer);
+      });
+      if (gps.length) {
+        const endpoints = [
+          { point: gps[0], label: "Start · first GPS observation", color: "#0c6b57" },
+          { point: gps[gps.length - 1], label: "Destination · last GPS observation", color: "#b42318" }
+        ];
+        for (const { point: [lon, lat], label, color } of endpoints) {
+          L.circleMarker([lat, lon], {
+            radius: 9, color: "#ffffff", weight: 3, fillColor: color, fillOpacity: 1
+          }).bindTooltip(label, {
+            permanent: true, direction: label.startsWith("Start") ? "left" : "right"
+          }).addTo(endpointLayer);
+        }
+      }
+      if (bounds.length) {
+        routeBounds = L.latLngBounds(bounds);
+        map.fitBounds(routeBounds, { padding: [28, 28], maxZoom: 17 });
+        byId("fit-route").disabled = false;
+      }
+      setTimeout(() => map.invalidateSize(), 0);
+      mapSummary.textContent = `${gps.length.toLocaleString()} GPS points · ${sections.length.toLocaleString()} route sections`;
+    }
+    function showMetrics(data) {
+      metrics.replaceChildren();
+      warnings.replaceChildren();
+      if (!data) {
+        metrics.innerHTML = "<div><dt>Status</dt><dd>Waiting</dd></div>";
+        tripNote.textContent = "Choose a trip after the API connects. Predictions run on the server and are drawn over OpenStreetMap.";
+        return;
+      }
+      const values = data.metrics ?? {};
+      const accuracy = values.provisional_accuracy == null ? "Unavailable" : `${(values.provisional_accuracy * 100).toFixed(2)}%`;
+      const rows = [
+        ["GPS observations", values.observation_count?.toLocaleString()],
+        ["Matched", values.matched_count?.toLocaleString()],
+        ["Route sections", values.route_section_count?.toLocaleString()],
+        ["Provisional accuracy", accuracy]
+      ];
+      for (const [name, value] of rows) {
+        const item = document.createElement("div");
+        const title = document.createElement("dt");
+        const number = document.createElement("dd");
+        title.textContent = name;
+        number.textContent = value ?? "Unavailable";
+        item.append(title, number);
+        metrics.append(item);
+      }
+      tripNote.textContent = data.decoder === "hmm"
+        ? "Gaussian GPS emissions and normalized HMM transitions."
+        : "Trained classifier scores and directed Viterbi decoding.";
+      for (const message of data.warnings ?? []) {
+        const item = document.createElement("li");
+        item.textContent = String(message).replaceAll("_", " ");
+        warnings.append(item);
+      }
+    }
+    async function loadTrips(event) {
+      event?.preventDefault();
+      const signal = nextRequest();
+      trips.replaceChildren(new Option("Select a trip", ""));
+      trips.disabled = retry.disabled = true;
+      clearMap();
+      showMetrics(null);
+      setStatus("Connecting and loading available trips…", "loading");
+      try {
+        const catalog = await fetchJSON("/models", signal);
+        modelCatalog = catalog.models;
+        const models = byId("models");
+        models.replaceChildren();
+        if (!modelCatalog.length) models.add(new Option("Geometric HMM", ""));
+        for (const row of modelCatalog) models.add(new Option(row.label, row.id));
+        models.disabled = !modelCatalog.length;
+        showAggregate();
+        const response = await fetchJSON("/trips", signal);
+        if (signal.aborted) return;
+        for (const id of response.trip_ids ?? []) trips.add(new Option(id, id));
+        trips.disabled = !response.trip_ids?.length;
+        setStatus(response.trip_ids?.length ? `${response.trip_ids.length} trips available. Select one to run inference.` : "No trips are available.");
+        if (response.trip_ids?.length) {
+          trips.value = response.trip_ids[0];
+          await predict();
+        }
+      } catch (error) {
+        if (!signal.aborted) setStatus(`Could not load trips. ${error.message}`, "error");
+      }
+    }
+    async function predict() {
+      const signal = nextRequest();
+      const trip = trips.value;
+      clearMap();
+      showMetrics(null);
+      retry.disabled = true;
+      if (!trip) { setStatus("Select a trip."); return; }
+      setStatus(`Running trained inference for trip ${trip}…`, "loading");
+      try {
+        const response = await fetchJSON("/predict", signal, {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ trip_id: trip, model_id: byId("models").value || null })
+        });
+        if (signal.aborted) return;
+        if (response.trip_id !== trip) throw new Error("The API returned a different trip.");
+        renderMap(response);
+        showMetrics(response);
+        setStatus(`Trip ${trip} is ready.`);
+      } catch (error) {
+        if (!signal.aborted) {
+          setStatus(`Prediction failed. ${error.message}`, "error");
+          retry.disabled = false;
+        }
+      }
+    }
+    byId("controls").addEventListener("submit", loadTrips);
+    trips.addEventListener("change", predict);
+    byId("models").addEventListener("change", () => { showAggregate(); predict(); });
+    retry.addEventListener("click", predict);
+    byId("fit-route").addEventListener("click", () => {
+      if (routeBounds) map.fitBounds(routeBounds, { padding: [28, 28], maxZoom: 17 });
+    });
+    initializeMap();
+    loadTrips();
+  </script>
+</body>
+</html>

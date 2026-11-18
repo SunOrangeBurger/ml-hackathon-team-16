@@ -1,0 +1,16 @@
+{
+  "student_test_trips": 10,
+  "eligible_observations": 19133,
+  "classifier": {
+    "pointwise_accuracy": 0.812940992003345,
+    "mean_sequence_similarity": 0.6272430005963507,
+    "sections": 1974,
+    "impossible_transitions": 1962
+  },
+  "viterbi": {
+    "pointwise_accuracy": 0.7937594731615534,
+    "mean_sequence_similarity": 0.7603536755838189,
+    "sections": 84,
+    "impossible_transitions": 72
+  }
+}

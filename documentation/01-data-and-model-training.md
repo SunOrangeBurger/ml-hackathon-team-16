@@ -12,6 +12,8 @@ See the [Review 1 run instructions and results](review-1-data-and-model.md).
 
 ## Final evaluation requirements
 
+The backup branch includes the five-model comparison, Bayesian search, full-data refit and exported artifact. See [development results](development-results.md).
+
 - [ ] Compare at least five trained models using trip-grouped cross-validation on the 80 training trips and development comparisons on the 10 student-testing trips.
 - [ ] Select a model with measured evidence, run Bayesian optimization using training-trip folds and compare tuned and untuned models on the same partitions and metrics.
 - [ ] Export the final model, fitted preprocessing, feature schema and inference configuration. Verify that reloaded artifacts reproduce candidate scores.
