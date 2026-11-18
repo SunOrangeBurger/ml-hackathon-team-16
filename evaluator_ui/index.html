@@ -104,7 +104,7 @@
     const api = byId("api"), trips = byId("trips"), retry = byId("retry");
     const status = byId("status"), metrics = byId("metrics"), warnings = byId("warnings");
     const mapSummary = byId("map-summary"), tripNote = byId("trip-note");
-    let request = null, map = null, gpsLayer = null, routeLayer = null;
+    let request = null, map = null, gpsLayer = null, routeLayer = null, endpointLayer = null;
     let routeBounds = null;
     api.value = new URLSearchParams(location.search).get("api") || "http://127.0.0.1:8000";
 
@@ -141,8 +141,10 @@
       });
       gpsLayer = L.layerGroup().addTo(map);
       routeLayer = L.layerGroup().addTo(map);
+      endpointLayer = L.layerGroup().addTo(map);
       L.control.layers({ "OpenStreetMap": street, "Humanitarian": humanitarian }, {
-        "GPS observations": gpsLayer, "Predicted route": routeLayer
+        "GPS observations": gpsLayer, "Predicted route": routeLayer,
+        "Start and destination": endpointLayer
       }, { collapsed: false }).addTo(map);
     }
     function clearMap() {
@@ -150,6 +152,7 @@
       byId("fit-route").disabled = true;
       gpsLayer?.clearLayers();
       routeLayer?.clearLayers();
+      endpointLayer?.clearLayers();
       mapSummary.textContent = "Select a trip to view its route.";
     }
     function renderMap(data) {
@@ -174,6 +177,19 @@
           color: "#0c6b57", weight: 5, opacity: .9, lineCap: "round", lineJoin: "round"
         }).bindTooltip(`Route section ${index + 1}`).addTo(routeLayer);
       });
+      if (gps.length) {
+        const endpoints = [
+          { point: gps[0], label: "Start · first GPS observation", color: "#0c6b57" },
+          { point: gps[gps.length - 1], label: "Destination · last GPS observation", color: "#b42318" }
+        ];
+        for (const { point: [lon, lat], label, color } of endpoints) {
+          L.circleMarker([lat, lon], {
+            radius: 9, color: "#ffffff", weight: 3, fillColor: color, fillOpacity: 1
+          }).bindTooltip(label, {
+            permanent: true, direction: label.startsWith("Start") ? "left" : "right"
+          }).addTo(endpointLayer);
+        }
+      }
       if (bounds.length) {
         routeBounds = L.latLngBounds(bounds);
         map.fitBounds(routeBounds, { padding: [28, 28], maxZoom: 17 });
