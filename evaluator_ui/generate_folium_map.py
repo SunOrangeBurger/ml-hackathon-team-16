@@ -3,13 +3,15 @@ Reproducible Folium Map Generator.
 Generates an interactive HTML map for any development or evaluated trip.
 
 Usage:
-    python generate_folium_map.py --trip 001 --output trip_001_map.html
-    python generate_folium_map.py --trip 002 --output trip_002_gap_map.html
+    python evaluator_ui/generate_folium_map.py --trip 00000001 --output trip_001_map.html
+    python evaluator_ui/generate_folium_map.py --fixture backend/fixtures/development_trip.json --output dev_map.html
+    python evaluator_ui/generate_folium_map.py --trip 00000091 --output eval_trip_091.html
 """
 
 import argparse
 import sys
 import os
+import json
 
 # Add root directory to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -20,23 +22,29 @@ from evaluator_ui.api_client import BackendAPIClient
 
 def main():
     parser = argparse.ArgumentParser(description="Generate Folium / Leaflet Route Reconstruction Map")
-    parser.add_argument("--trip", type=str, default="001", help="Trip ID to render (e.g. 001, 002)")
+    parser.add_argument("--trip", type=str, default="00000001", help="Trip ID to render (e.g. 00000001, 00000091, synthetic)")
+    parser.add_argument("--fixture", type=str, default=None, help="Path to a GeoJSON trip fixture file")
     parser.add_argument("--output", type=str, default="route_map.html", help="Output HTML file path")
     parser.add_argument("--api", type=str, default=None, help="Optional FastAPI backend URL (e.g. http://localhost:8000)")
     args = parser.parse_args()
 
     trip_id = str(args.trip)
-    print(f"Generating map for Trip '{trip_id}'...")
 
-    if args.api:
+    if args.fixture:
+        print(f"Loading trip geometry from fixture: {args.fixture}")
+        with open(args.fixture, "r", encoding="utf-8") as f:
+            trip_data = json.load(f)
+    elif args.api:
+        print(f"Querying backend API ({args.api}) for Trip '{trip_id}'...")
         client = BackendAPIClient(base_url=args.api)
         try:
-            trip_data = client.predict_trip(trip_id)
+            trip_data, _ = client.predict_trip(trip_id)
         except Exception as e:
             print(f"Error fetching from API: {e}. Falling back to local fixtures.")
-            trip_data = MOCK_TRIPS.get(trip_id, MOCK_TRIPS["001"])
+            trip_data = MOCK_TRIPS.get(trip_id, MOCK_TRIPS["00000001"])
     else:
-        trip_data = MOCK_TRIPS.get(trip_id, MOCK_TRIPS["001"])
+        print(f"Loading local fixture for Trip '{trip_id}'...")
+        trip_data = MOCK_TRIPS.get(trip_id, MOCK_TRIPS["00000001"])
 
     out_file = export_folium_html(trip_data, args.output)
     print(f"✔ Interactive HTML map successfully saved to: {os.path.abspath(out_file)}")

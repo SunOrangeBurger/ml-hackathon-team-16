@@ -1,5 +1,6 @@
 """
 Unit tests for Evaluator UI components, map renderer, and API client.
+Covers Review 1 and Final Evaluation contracts.
 """
 
 import unittest
@@ -32,37 +33,48 @@ class TestEvaluatorUI(unittest.TestCase):
             self.assertEqual(trip["predicted_route"]["type"], "MultiLineString")
             self.assertIn("warnings", trip)
 
+    def test_reserved_evaluator_trips_present(self):
+        """Checks that all 10 reserved student evaluator IDs (00000091 to 00000100) are present."""
+        for num in range(91, 101):
+            tid = f"{num:08d}"
+            self.assertIn(tid, MOCK_TRIPS)
+            self.assertIsNone(MOCK_TRIPS[tid]["metrics"])  # Ground truth strictly withheld server-side!
+
     def test_map_renderer_html_generation(self):
         """Verifies map renderer outputs valid HTML with required layer definitions."""
-        trip = MOCK_TRIPS["001"]
+        trip = MOCK_TRIPS["00000001"]
         html = get_leaflet_map_html(trip)
         self.assertIn("L.map", html)
         self.assertIn("Raw GPS Points", html)
         self.assertIn("Predicted Route (HMM)", html)
-        self.assertIn("Trip: 001", html)
+        self.assertIn("Trip: 00000001", html)
 
     def test_discontinuity_rendering(self):
-        """Checks that trip 002 with gaps generates multiple line segments without joining them."""
-        trip = MOCK_TRIPS["002"]
+        """Checks that trip with gaps generates multiple line segments without joining them."""
+        trip = MOCK_TRIPS["00000002"]
         html = get_leaflet_map_html(trip)
         self.assertIn("Route contains gaps", html)
         self.assertEqual(len(trip["predicted_route"]["coordinates"]), 2)
 
     def test_api_client_mock_mode(self):
-        """Verifies that BackendAPIClient operates properly in mock mode."""
+        """Verifies that BackendAPIClient operates properly in mock mode with all 10 reserved IDs."""
         client = BackendAPIClient("http://localhost:8000")
         trips = client.get_trips(use_mock=True)
-        self.assertIn("001", trips)
-        self.assertIn("002", trips)
-        self.assertIn("003", trips)
+        self.assertIn("00000001", trips)
+        self.assertIn("00000002", trips)
+        self.assertIn("synthetic", trips)
+        # Check all 10 reserved evaluator IDs
+        for num in range(91, 101):
+            self.assertIn(f"{num:08d}", trips)
 
-        res = client.predict_trip("001", use_mock=True)
-        self.assertEqual(res["trip_id"], "001")
+        res, latency = client.predict_trip("00000001", use_mock=True)
+        self.assertEqual(res["trip_id"], "00000001")
         self.assertIsNotNone(res["metrics"])
+        self.assertGreater(latency, 0)
 
     def test_evaluator_trip_null_metrics(self):
         """Verifies that evaluator trip handles null metrics correctly."""
-        trip = MOCK_TRIPS["003"]
+        trip = MOCK_TRIPS["00000091"]
         self.assertIsNone(trip["metrics"])
 
 if __name__ == "__main__":

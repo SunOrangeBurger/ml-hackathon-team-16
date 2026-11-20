@@ -11,10 +11,47 @@ Contract:
 - warnings: string array
 """
 
+# Base sample coordinates around city road corridor
+BASE_LAT = 12.9716
+BASE_LON = 77.5946
+
+def generate_evaluator_trip(tid: str, offset_idx: int) -> dict:
+    """Generates a realistic reserved evaluator trip fixture with server-side ground truth hidden."""
+    dlat = offset_idx * 0.003
+    dlon = offset_idx * 0.003
+    gps_coords = [
+        [round(BASE_LON + dlon + i * 0.0012, 6), round(BASE_LAT + dlat + i * 0.0015, 6)]
+        for i in range(12)
+    ]
+    # Projected road route slightly smoother
+    route_coords = [
+        [round(BASE_LON + dlon + i * 0.0012 - 0.0001, 6), round(BASE_LAT + dlat + i * 0.0015 - 0.0001, 6)]
+        for i in range(12)
+    ]
+    return {
+        "trip_id": tid,
+        "title": f"Reserved Evaluator Trip {tid}",
+        "description": f"Official reserved evaluation trip #{offset_idx}. Ground-truth labels withheld server-side.",
+        "gps": {
+            "type": "MultiPoint",
+            "coordinates": gps_coords
+        },
+        "predicted_route": {
+            "type": "MultiLineString",
+            "coordinates": [route_coords]
+        },
+        "reference_route": None,  # Ground truth strictly hidden on server for evaluator trips!
+        "metrics": None,          # Evaluator mode: server computes aggregate results internally
+        "warnings": [
+            f"Evaluator Mode: Trip {tid} ground-truth reference geometry is withheld on server."
+        ]
+    }
+
 MOCK_TRIPS = {
-    "001": {
-        "trip_id": "001",
-        "title": "Trip 001 - Continuous Corridor (Training Dev)",
+    # Development Triplet
+    "00000001": {
+        "trip_id": "00000001",
+        "title": "Trip 00000001 - Continuous Corridor (Training Dev)",
         "description": "Standard urban trajectory with clear road alignment and high candidate confidence.",
         "gps": {
             "type": "MultiPoint",
@@ -74,9 +111,9 @@ MOCK_TRIPS = {
         },
         "warnings": []
     },
-    "002": {
-        "trip_id": "002",
-        "title": "Trip 002 - Route Discontinuity (Tunnel / Signal Loss)",
+    "00000002": {
+        "trip_id": "00000002",
+        "title": "Trip 00000002 - Route Discontinuity (Tunnel / Signal Loss)",
         "description": "Trajectory exhibiting a 92-second timestamp gap. Demonstrates that Viterbi emits segmented MultiLineString without connecting across gaps.",
         "gps": {
             "type": "MultiPoint",
@@ -84,7 +121,7 @@ MOCK_TRIPS = {
                 [77.6050, 12.9860],
                 [77.6062, 12.9875],
                 [77.6075, 12.9890],
-                # Gap period
+                # 90-second outage / signal loss
                 [77.6130, 12.9950],
                 [77.6145, 12.9968],
                 [77.6160, 12.9985]
@@ -92,7 +129,6 @@ MOCK_TRIPS = {
         },
         "predicted_route": {
             "type": "MultiLineString",
-            # Two separate line segments
             "coordinates": [
                 [
                     [77.6048, 12.9858],
@@ -133,38 +169,41 @@ MOCK_TRIPS = {
             "Viterbi decoder restarted sequence; route emitted as disconnected MultiLineString."
         ]
     },
-    "003": {
-        "trip_id": "003",
-        "title": "Trip 003 - Reserved Evaluator Trip",
-        "description": "Representative reserved evaluation trip. Server-side ground truth is intentionally withheld (null metrics).",
+    "synthetic": {
+        "trip_id": "synthetic",
+        "title": "Trip synthetic - Shared Backend Development Fixture",
+        "description": "Standard synthetic development fixture shared across Workstream 02 (Decoder) and 03 (FastAPI).",
         "gps": {
             "type": "MultiPoint",
             "coordinates": [
-                [77.5850, 12.9620],
-                [77.5862, 12.9635],
-                [77.5878, 12.9650],
-                [77.5895, 12.9668],
-                [77.5910, 12.9685],
-                [77.5925, 12.9702]
+                [8.00005, 49.0],
+                [8.00015, 49.00003]
             ]
         },
         "predicted_route": {
             "type": "MultiLineString",
             "coordinates": [
                 [
-                    [77.5848, 12.9618],
-                    [77.5860, 12.9632],
-                    [77.5875, 12.9648],
-                    [77.5892, 12.9665],
-                    [77.5908, 12.9682],
-                    [77.5923, 12.9700]
+                    [8.0, 49.0],
+                    [8.0001, 49.0],
+                    [8.0002, 49.0]
                 ]
             ]
         },
         "reference_route": None,
         "metrics": None,
         "warnings": [
-            "Evaluator mode: Ground truth is hidden server-side. Pointwise metrics are unavailable."
+            "Development fixture only; this response matches backend/fixtures/development_trip.json."
         ]
     }
 }
+
+# Add the 10 Reserved Student Evaluator Trips (00000091 through 00000100)
+for idx, num in enumerate(range(91, 101), start=1):
+    tid_str = f"{num:08d}"
+    MOCK_TRIPS[tid_str] = generate_evaluator_trip(tid_str, idx)
+
+# Aliases for 3-digit convenience
+MOCK_TRIPS["001"] = {**MOCK_TRIPS["00000001"], "trip_id": "001"}
+MOCK_TRIPS["002"] = {**MOCK_TRIPS["00000002"], "trip_id": "002"}
+MOCK_TRIPS["003"] = {**MOCK_TRIPS["00000091"], "trip_id": "003"}
